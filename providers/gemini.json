@@ -5,6 +5,7 @@
   "key_env": "GEMINI_API_KEY",
   "key_url": "https://aistudio.google.com/apikey",
   "catalog_url": "https://ai.google.dev/gemini-api/docs/models",
+  "billing_url": "https://aistudio.google.com/app/plan_information",
   "api_base": "https://generativelanguage.googleapis.com/v1beta",
   "verified": false,
   "verified_note": "UNVERIFIED ADAPTER. The call shapes have never been exercised against the live API. Model IDs were checked against the catalogue on 2026-09-04 and two had already drifted from the original design: gemini-3-pro-image-preview -> gemini-3-pro-image, and veo-3.1-fast-generate-preview does not exist (there is no 'fast' tier; the cheap tier is 'lite'). Expect the first real run to find something. Fix it here, not in Python.",

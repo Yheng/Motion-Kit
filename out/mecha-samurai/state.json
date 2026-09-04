@@ -1,0 +1,24 @@
+{
+  "phase": "still",
+  "approvals": {
+    "directions": {
+      "approved": true,
+      "at": "2026-09-04T13:49:30Z",
+      "choice": "3",
+      "note": "Catalogue — museum-white cyclorama, clinical studio light, locked turntable. Chose the contrarian third: clinical white is the actual grammar of a product launch, and a full revolution loops cleanly for the seam check."
+    }
+  },
+  "spend": [],
+  "assets": {},
+  "jobs": {},
+  "phase_history": [
+    {
+      "phase": "architecture",
+      "at": "2026-09-04T13:49:31Z"
+    },
+    {
+      "phase": "still",
+      "at": "2026-09-04T13:50:07Z"
+    }
+  ]
+}

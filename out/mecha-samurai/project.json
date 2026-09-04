@@ -1,0 +1,17 @@
+{
+  "name": "mecha-samurai",
+  "provider": "gemini",
+  "created": "2026-09-04T11:38:05Z",
+  "models": {
+    "image": null,
+    "video": null,
+    "cutout": null
+  },
+  "defaults": {
+    "count": 180,
+    "width": 1600,
+    "mobile_width": 900,
+    "format": "webp",
+    "quality": 80
+  }
+}

@@ -93,7 +93,7 @@ Then the escape ladder, verbatim:
 
 > Reply **1**, **2** or **3**. Or: **mix** (say which parts of which), **more**
 > (three fresh directions), **describe** (your own), or **preview N** to render
-> that direction first (~$0.15, about a minute).
+> that direction first (~0.15 USD, about a minute).
 
 A preview is a **mood test, not the hero** — it is rendered before copy exists,
 so composition will differ from the final. Say so when offering it. Text
@@ -126,7 +126,7 @@ text, meta description. Place keywords where they read naturally.
 python motionkit.py image --project <p> --prompt "..." --out hero_v1.png
 ```
 
-Two or three variants at ~$0.15 each. Prompt a **frozen moment** — subject,
+Two or three variants at ~0.15 USD each. Prompt a **frozen moment** — subject,
 materials, lighting, background, camera angle — and **no motion words at all.**
 
 Compose for the move that follows: an orbit needs margin on all sides or the
@@ -222,8 +222,8 @@ trickles frames six at a time.
 **Money.** *Copy, palette, layout and type changes never touch `build/`.* Only a
 scene or composition change justifies a new render — this is the single biggest
 cost saver in the design. Re-slicing frames is always free. A typical page is
-one still plus two clips, around $3. `--placeholder` exercises the whole
-pipeline for $0, and `--provider byo` does the same with the user's own footage.
+one still plus two clips, around 3. USD `--placeholder` exercises the whole
+pipeline for 0 USD, and `--provider byo` does the same with the user's own footage.
 
 **Honesty.** Never claim a render succeeded if it did not; report retries. Raise
 IP and likeness concerns at intake, and again if a direction drifts toward a

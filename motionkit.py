@@ -719,6 +719,31 @@ def looks_moderated(config: dict, blob: str) -> bool:
     return any(p in lowered for p in (config.get("moderation_patterns") or []))
 
 
+def quota_error(config: dict, model_id: str, body) -> "str | None":
+    """Turn a 429 into something actionable.
+
+    A 429 is not a bad request — the key is valid and the call shape was
+    accepted. It means rate limit or, far more often, no billing on the account.
+    Google reports the latter as 'limit: 0' on a free-tier metric, which is a
+    different problem from 'slow down' and needs a different answer.
+    """
+    blob = json.dumps(body)
+    hard = "limit: 0" in blob or "free_tier" in blob
+    lines = [f"{config.get('name', '?')} returned 429 for '{model_id}'."]
+    if hard:
+        lines += [
+            "  Your key is valid — this is a quota of ZERO, which means the account",
+            "  has no paid billing enabled for this model. Free-tier access to it is 0,",
+            "  so no amount of waiting or retrying will help.",
+            f"  Enable billing, then retry: {config.get('billing_url', config.get('key_url', ''))}",
+        ]
+    else:
+        lines += ["  This looks like a rate limit rather than a billing problem.",
+                  "  Wait a minute and re-run the identical command."]
+    lines.append("  Nothing was charged: no job was created.")
+    return "\n".join(lines)
+
+
 def job_fingerprint(provider: str, op: str, model_id: str, payload: dict) -> str:
     """Identity of a job, so an interrupted run resumes instead of paying twice."""
     canonical = json.dumps({"p": provider, "o": op, "m": model_id, "b": payload},
@@ -749,6 +774,8 @@ def fal_submit(config: dict, op: str, model_id: str, payload: dict) -> dict:
     if status in (401, 403):
         die(f"{config.get('key_env')} was rejected ({status}). "
             f"Check the key at {config.get('key_url')}", code=3)
+    if status == 429:
+        die(quota_error(config, model_id, body), code=3)
     if status >= 400 or not isinstance(body, dict):
         die(f"{config.get('name')} refused the request ({status}): "
             f"{json.dumps(body)[:400]}", code=3)
@@ -841,6 +868,8 @@ def gemini_submit(config: dict, op: str, model_id: str, payload: dict) -> dict:
     if status in (401, 403):
         die(f"{config.get('key_env')} was rejected ({status}). "
             f"Check it at {config.get('key_url')}", code=3)
+    if status == 429:
+        die(quota_error(config, model_id, response), code=3)
     if status >= 400 or not isinstance(response, dict):
         die(f"Gemini refused the request ({status}): {json.dumps(response)[:400]}", code=3)
 
@@ -1195,6 +1224,42 @@ def cmd_init(args: argparse.Namespace) -> int:
         say(f"\n  Bring-your-own: drop stills and mp4s into {directory / 'build'}")
     elif provider_config and not provider_key(provider_config):
         say(f"\n  {mark('warn')} {provider_config.get('key_env')} is not set — generation will fail")
+    return 0
+
+
+def cmd_phase(args: argparse.Namespace) -> int:
+    """Record consultation progress. Without this the skill cannot resume."""
+    require_project(args.project)
+
+    if not (args.set or args.approve):
+        state = load_state(args.project)
+        say(f"  phase     {state.get('phase')}")
+        approvals = state.get("approvals") or {}
+        if approvals:
+            for gate, record in approvals.items():
+                choice = f" choice={record.get('choice')}" if record.get("choice") else ""
+                say(f"  approved  {gate}{choice}  {record.get('at')}")
+                if record.get("note"):
+                    say(f"            {record['note']}")
+        else:
+            say("  approved  nothing yet")
+        return 0
+
+    if args.set and args.set not in PHASES:
+        die(f"'{args.set}' is not a phase. One of: {', '.join(PHASES)}", code=2)
+
+    with mutate_state(args.project) as state:
+        if args.set:
+            state["phase"] = args.set
+            state.setdefault("phase_history", []).append({"phase": args.set, "at": now_iso()})
+            say(f"{mark('ok')} phase = {args.set}")
+        if args.approve:
+            state.setdefault("approvals", {})[args.approve] = {
+                "approved": True, "at": now_iso(),
+                "choice": args.choice, "note": args.note or "",
+            }
+            say(f"{mark('ok')} approved {args.approve}"
+                + (f" (choice {args.choice})" if args.choice else ""))
     return 0
 
 
@@ -1691,6 +1756,14 @@ def build_parser() -> argparse.ArgumentParser:
     frames.add_argument("--placeholder", action="store_true",
                         help="generate free frames with no clip and no API call")
     frames.set_defaults(func=cmd_frames)
+
+    phase = sub.add_parser("phase", help="show or record consultation phase and gate approvals")
+    phase.add_argument("--project", required=True)
+    phase.add_argument("--set", help=f"one of: {', '.join(PHASES)}")
+    phase.add_argument("--approve", help="gate name, e.g. directions, copy, still")
+    phase.add_argument("--choice", help="what was chosen at that gate")
+    phase.add_argument("--note", help="why")
+    phase.set_defaults(func=cmd_phase)
 
     cost = sub.add_parser("cost", help="itemised spend log and total")
     cost.add_argument("--project", required=True)
