@@ -1,146 +1,160 @@
 /*
- * motion-kit — THE BRAND LAYER. This is the file to edit per project.
+ * aesthetica — brand layer. "Silk & Petal".
  *
- * styles.css is structural scaffolding and stays pristine. This file carries
- * every design decision: palette, typography, texture, rhythm. It loads after
- * styles.css and is deliberately UNLAYERED, so it beats the @layer scaffold
- * rules there regardless of specificity — you never need !important, and you
- * never need to match a scaffold selector exactly.
+ * THE SHOT: iridescent silk ribbons in pearl, blush and lavender sweeping
+ * through a luminous cream gradient, cherry blossom petals drifting, gold
+ * bokeh. The sequence is the client's own final.mp4 — brought in through the
+ * bring-your-own path, so the whole hero cost nothing.
  *
- * Two things this file must never do, because they break the effect:
- *   1. Do not set position, height, inset, z-index, overflow or object-fit on
- *      .stage, .stage__*, .scrub or .nav. Scaffold owns geometry.
- *   2. Do not put overflow:hidden, transform, filter, contain:paint or
- *      will-change on html, body, main, or any wrapper of .scrub. Any of those
- *      silently kills position:sticky and the hero freezes on a single frame.
+ * NO CUTOUT LAYER AND NO TEXT-BEHIND. The supplied clip contains the figure, so
+ * she moves with the plate, and a static cutout cannot sit over a subject that
+ * moves. Copy is held left of her, where the frame stays open across the whole
+ * sequence. (Generating an animated figure was attempted earlier and refused by
+ * the provider's content policy as a likeness of a real person — unbilled.)
  *
- * What follows is a deliberately neutral placeholder so an unbranded page is
- * legible. Replace all of it — a real direction picks five named colours and a
- * type pairing with roles.
+ * THE PAGE (luxe / editorial register):
+ *   Ground rhythm  bookended — #cta-mid and #book carry the dark grounds
+ *   Scale break    editorial 6x, held below the hero; peak is #promise
+ *   Accent licence gold on rule, numeral, eyebrow; rose on cta
+ *   Imagery        plucked frames 40 and 120, plus the client logo
+ *   Hero share     chapter, 200vh
  */
 
-/* ── THE EIGHT ROLE DECLARATIONS ───────────────────────────────────────────
- * This is the brand layer's one structural obligation. styles.css points every
- * band at --ground-N / --ink-N / --rule-N / --muted-N and supplies no values;
- * these are the values.
- *
- * Ground 1 is the page's default. Ground 2 is what .band--invert switches to.
- * --field-* is the accent ground used by .band--field, normally once per page.
- *
- * Omit them and nothing breaks: every band falls back to a transparent ground
- * with inherited ink, i.e. an ordinary single-ground page. There is no way to
- * get white-on-white out of this.
- */
+/* ── the eight role declarations ─────────────────────────────────────────── */
 :root {
-  --ground-1: #fbfbfa;  --ink-1: #14161a;  --rule-1: #dcdde0;  --muted-1: #5c626b;
-  --ground-2: #14161a;  --ink-2: #f4f4f6;  --rule-2: #33363c;  --muted-2: #9aa0aa;
-  --field-bg: #14161a;  --field-fg: #f4f4f6;
+  --cream:    #f9f4ef;
+  --pearl:    #f2e9e4;
+  --blush:    #e8cfcc;
+  --lavender: #d6cfe0;
+  --gold:     #b8934f;
+  --rose:     #b8767f;
+  --plum:     #3b2e38;
+
+  --ground-1: var(--cream);  --ink-1: var(--plum);
+  --rule-1:   #e6dcd4;       --muted-1: #8a7a80;
+
+  --ground-2: var(--plum);   --ink-2: var(--cream);
+  --rule-2:   #574656;       --muted-2: #b9a8b2;
+
+  --field-bg: var(--rose);   --field-fg: #fffaf8;
+
+  --track-h: 200vh;
 }
+@media (max-width: 767px) { :root { --track-h: 180vh; } }
 
-/* ── typography ────────────────────────────────────────────────────────────
- * A direction names a PAIRING WITH ROLES — which face carries display, which
- * carries text, which carries data — not two family names.
- *
- * A font CDN is permitted. To use one, add to <head> BEFORE this stylesheet:
- *
- *   <link rel="preconnect" href="https://fonts.googleapis.com">
- *   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
- *   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">
- *
- * Two things to get right, because they hit the targets the spec sets:
- *   - Preload the ONE display face and let the rest arrive normally. A huge H1
- *     swapping late is the most likely source of layout shift on this page, and
- *     CLS < 0.1 is a stated target. Pair with size-adjust metrics below.
- *   - Google Fonts discloses visitor IPs to a third party. For EU client work,
- *     run `python motionkit.py fonts --self-host` to vendor the pairing into
- *     site/fonts/ and rewrite these rules.
- *
- * Metric-matched fallback, so the swap does not move anything. Tune
- * size-adjust to the chosen face; 100% is a no-op placeholder.
- *
- *   @font-face { font-family: "Display Fallback"; src: local("Arial");
- *                size-adjust: 100%; ascent-override: 90%; descent-override: 22%; }
+/* ── type ────────────────────────────────────────────────────────────────────
+ * Playfair Display carries display — a high-contrast didone is the magazine
+ * register. Inter carries text. Inter tracked and uppercased carries data, so
+ * nothing competes with the serif.
  */
 :root {
-  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-body: var(--font-display);
-  --font-data: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  --font-display: "Playfair Display", "Times New Roman", Georgia, serif;
+  --font-body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: var(--font-body);
 
-  /* Scale break. The ratio must HOLD BELOW THE HERO — a page that is 9x in the
-     stage and 2.5rem everywhere else reads as flat no matter how good the
-     hero is. --size-statement is the page's one display moment below the fold. */
-  --size-statement: clamp(2rem, 6vw, 4.5rem);
-  --size-stat: 2.5em;
+  --size-statement: clamp(2.5rem, 6.2vw, 5.5rem);
+  --size-stat: clamp(3rem, 6vw, 5rem);
 }
 
 body {
   background: var(--ground-1);
   color: var(--ink-1);
   font-family: var(--font-body);
-  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
-  line-height: 1.6;
+  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.125rem);
+  line-height: 1.7;
 }
 
 h1, h2, h3, .display, .statement {
   font-family: var(--font-display);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-weight: 650;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
 }
+.display { font-size: clamp(2.5rem, 6vw, 6rem); text-wrap: nowrap; }
+@media (max-width: 900px) { .display { text-wrap: balance; } }
+h2 { font-size: clamp(2rem, 3.6vw, 3.5rem); }
+h3 { font-family: var(--font-body); font-size: 1rem; font-weight: 600;
+     letter-spacing: 0.01em; line-height: 1.5; }
 
-.display { font-size: clamp(2.5rem, 7vw, 6rem); }
-h2 { font-size: clamp(1.75rem, 3.5vw, 3rem); }
-h3 { font-size: 1.125rem; }
-
-.eyebrow, .scroll-hint, .stat__label, .figure figcaption {
+.eyebrow, .scroll-hint, .stat__label, .figure figcaption, .faq > dt {
   font-family: var(--font-data);
-  font-size: 0.8125rem;
-  letter-spacing: 0.16em;
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
+  font-weight: 500;
   color: var(--band-muted);
 }
 
-.lede { font-size: clamp(1.05rem, 1.6vw, 1.35rem); max-width: var(--measure); }
+.lede { font-size: clamp(1.0625rem, 1.4vw, 1.3rem); }
 .band p { max-width: var(--measure); }
 
-/* ── the hero plate ────────────────────────────────────────────────────────
- * Overlay copy sits over whatever frame happens to be behind it, which changes
- * as the sequence scrubs. Set the colour to suit the PLATE, not the page: a
- * dark clip wants light copy even on a light page, and vice versa. Getting
- * this backwards is an invisible hero.
- *
- * --scrim is the guarantee. It is a gradient behind the copy column so
- * contrast holds at every frame instead of only the ones you happened to look
- * at. Set it to `none` if the plate is genuinely uniform.
+/* ── the hero ────────────────────────────────────────────────────────────────
+ * The plate is a pale luminous cream, so the copy is plum. The scrim is a warm
+ * cream wash held to the left third, which is where the plate is already
+ * calmest — it reads as light rather than as a panel over the artwork.
  */
-.stage__overlay { color: #f4f4f6; }
-.stage__overlay::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: var(--scrim, linear-gradient(90deg, rgb(0 0 0 / 55%), rgb(0 0 0 / 0%) 60%));
-}
-.stage__overlay > * { position: relative; }   /* above the scrim */
+.stage { background: var(--cream); }
+.stage__overlay { color: var(--plum); }
+.stage__overlay { --scrim: linear-gradient(100deg,
+    rgb(249 244 239 / 88%) 0%, rgb(249 244 239 / 64%) 24%,
+    rgb(249 244 239 / 0%) 48%); }
+.stage__overlay .eyebrow { color: var(--gold); }
+.stage__overlay .beat { max-width: min(44ch, 42%); }
 
+/* No cutout layer: the supplied clip contains the figure, so she moves with
+   the plate. Copy is held left of her, where the frame stays open. */
+
+/* ── nav and logo ────────────────────────────────────────────────────────────
+ * The supplied logo is a JPEG on white, so it can only sit on a light ground
+ * without showing a box. Both placements are light for that reason, and
+ * mix-blend-mode drops the white. A transparent PNG or SVG would free it.
+ */
 .nav {
-  background: color-mix(in srgb, var(--ground-1) 82%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--cream) 84%, transparent);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--rule-1);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
-.nav__logo, .footer__logo { font-family: var(--font-display); font-weight: 650; }
+.nav__logo, .footer__logo { display: block; line-height: 0; }
+.nav__logo img { width: 52px; height: auto; mix-blend-mode: multiply; }
+.footer__logo img { width: 76px; height: auto; mix-blend-mode: multiply; }
 .nav__links a { text-decoration: none; }
+.nav__links a:hover { color: var(--rose); }
 
-.btn { border-color: currentColor; }
-.btn:hover { background: var(--band-fg); color: var(--band-bg); }
+/* ── accent licence: gold on rule, numeral, eyebrow · rose on cta ────────── */
+.btn {
+  font-family: var(--font-data);
+  font-size: 0.6875rem; letter-spacing: 0.2em; text-transform: uppercase;
+  font-weight: 500;
+  border-radius: 999px;
+  border-color: var(--rose); color: var(--rose);
+  padding: 1.05em 2.1em;
+  transition: background 240ms ease, color 240ms ease;
+}
+.btn:hover { background: var(--rose); color: #fff; }
+.band--invert .btn, .band--field .btn { border-color: currentColor; color: inherit; }
+.band--invert .btn:hover { background: var(--cream); color: var(--plum); }
+.band--field .btn:hover { background: #fff; color: var(--rose); }
 
-/* --band-rule, not --rule-1: the divider between a light and a dark band must
-   be drawn in the CURRENT band's rule colour, or it reads as a rendering bug. */
 .band + .band { border-top: 1px solid var(--band-rule); }
+a:not(.btn):not(.nav__logo):not(.footer__logo) { color: var(--rose); }
+.band--invert a:not(.btn), .band--field a:not(.btn) { color: var(--blush); }
 
-.quote blockquote p { font-size: 1.25rem; font-weight: 600; }
-.statement cite, .quote figcaption { color: var(--band-muted); }
-.footer { border-top: 1px solid var(--band-rule); color: var(--band-muted); }
-.footer__legal { font-size: 0.875rem; color: var(--band-muted); }
+/* ── the peak ────────────────────────────────────────────────────────────── */
+.statement { font-style: italic; }
+.statement cite { font-family: var(--font-data); font-style: normal;
+                  letter-spacing: 0.2em; text-transform: uppercase; }
+.stat__figure { font-family: var(--font-display); color: var(--gold); }
+.band--invert .stat__figure { color: var(--blush); }
 
-/* Beats are the same voice as the lede: they are hero copy, not captions. */
-.beat p { font-size: clamp(1.05rem, 1.6vw, 1.35rem); max-width: 34ch; }
-.beat--open p.lede { max-width: var(--measure); }
-a { color: inherit; }
+.faq > dt { border-top: 1px solid var(--band-rule); padding-top: 0.75rem; }
+.faq > dd { margin: 0.25rem 0 1.5rem; }
+.figure img { border-radius: 3px; }
+.footer { color: var(--band-muted); font-size: 0.875rem; }
+.footer__legal { font-size: 0.8125rem; max-width: 62ch; }
+
+/* The opening block is the only hero copy, so it gets the full column. */
+.beat--open .lede { max-width: 38ch; }

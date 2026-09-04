@@ -114,11 +114,10 @@ h3 { font-size: 1.125rem; }
  * at. Set it to `none` if the plate is genuinely uniform.
  */
 .stage__overlay { color: #f4f4f6; }
-.stage__overlay::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: var(--scrim, linear-gradient(90deg, rgb(0 0 0 / 55%), rgb(0 0 0 / 0%) 60%));
-}
-.stage__overlay > * { position: relative; }   /* above the scrim */
+/* Only the VALUE belongs here — styles.css owns the box that paints it, so a
+   rewritten brand layer cannot lose the mechanism. Set `none` for a uniform
+   plate that genuinely needs no protection. */
+.stage__overlay { --scrim: linear-gradient(90deg, rgb(0 0 0 / 55%), rgb(0 0 0 / 0%) 60%); }
 
 .nav {
   background: color-mix(in srgb, var(--ground-1) 82%, transparent);

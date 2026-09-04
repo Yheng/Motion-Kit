@@ -1962,13 +1962,32 @@ def cmd_video(args: argparse.Namespace) -> int:
 
 def cmd_cutout(args: argparse.Namespace) -> int:
     directory = require_project(args.project)
-    source = Path(args.image)
-    for option in (source, directory / source, directory / "build" / source.name):
-        if option.is_file():
-            source = option
-            break
-    else:
-        die(f"no image at {args.image}")
+    source = find_local_asset(directory, args.image)
+
+    if args.crop:
+        # Supplied photographs are rarely framed for a cutout: a portrait may
+        # carry a gift card, third-party branding or dead space that has no
+        # business on the page. Crop before segmenting rather than after, so the
+        # matte is computed on what actually ships.
+        try:
+            box = [float(v) for v in str(args.crop).split(",")]
+            assert len(box) == 4 and all(0 <= v <= 1 for v in box)
+        except (ValueError, AssertionError):
+            die("--crop takes four fractions of the source: x,y,w,h", code=2)
+        ffmpeg, ffprobe = ensure_ffmpeg()
+        width, height = probe_dimensions(ffprobe, source)
+        cropped = directory / "build" / f"{source.stem}_crop{source.suffix}"
+        run_ffmpeg(ffmpeg, [
+            "-i", str(source),
+            "-vf", "crop={}:{}:{}:{}".format(
+                max(2, int(width * box[2])), max(2, int(height * box[3])),
+                int(width * box[0]), int(height * box[1])),
+            str(cropped),
+        ], f"cropping {source.name}")
+        new_w, new_h = probe_dimensions(ffprobe, cropped)
+        say(f"  {mark('ok')} cropped {width}x{height} -> {new_w}x{new_h}  "
+            f"({cropped.name}, $0.00)")
+        source = cropped
 
     out_name = args.out or f"{source.stem}_cutout.png"
     path = run_generation(
@@ -2100,6 +2119,47 @@ def cmd_frames(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_publish(args: argparse.Namespace) -> int:
+    """Copy a build asset into site/img/ so the page can reference it.
+
+    build/ is gitignored and is not served; site/ is the deliverable. Client
+    supplied logos, headshots and diagrams had no route across that line —
+    `pluck` only handles sliced frames and `poster` only writes posters.
+    """
+    directory = require_project(args.project)
+    source = find_local_asset(directory, args.image)
+    ffmpeg, _ = ensure_ffmpeg()
+    dest = directory / "site" / "img"
+    dest.mkdir(parents=True, exist_ok=True)
+    out = dest / f"{args.out or source.stem}.{args.format}"
+    chain = [f"scale={args.width}:-2:flags=lanczos"] if args.width else []
+    run_ffmpeg(ffmpeg, ["-i", str(source)] + (["-vf", ",".join(chain)] if chain else [])
+               + encoder_args(args.format, args.quality) + ["-f", "image2", str(out)],
+               f"publishing {source.name}")
+    say(f"  {mark('ok')} {rel_posix(out, directory / 'site')}  "
+        f"({out.stat().st_size / 1e3:.0f} KB, $0.00)")
+    return 0
+
+
+def cmd_poster(args: argparse.Namespace) -> int:
+    """Publish a still as a section's poster, without slicing a clip.
+
+    `frames` normally writes the poster from frame 1, but that needs a clip.
+    Before the motion exists there is no way to see the page with its real
+    plate behind the copy — which is exactly when the layer sandwich most
+    needs looking at. Free: one ffmpeg pass on a file already on disk.
+    """
+    directory = require_project(args.project)
+    source = find_local_asset(directory, args.image)
+    ffmpeg, _ = ensure_ffmpeg()
+    poster_dir = directory / "site" / "poster"
+    made = write_poster(ffmpeg, source, poster_dir, args.name, args.width)
+    for path in made:
+        say(f"  {mark('ok')} {rel_posix(path, directory / 'site')}")
+    say(f"  $0.00 — poster only; `frames` overwrites it from frame 1 once a clip exists")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import http.server
     import socketserver
@@ -2221,6 +2281,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_paid(cutout)
     cutout.add_argument("--image", required=True)
     cutout.add_argument("--out", help="default: <image>_cutout.png")
+    cutout.add_argument("--crop", help="x,y,w,h as fractions, applied before segmenting")
     cutout.set_defaults(func=cmd_cutout)
 
     frames = sub.add_parser("frames", help="slice a clip into numbered frames")
@@ -2269,6 +2330,22 @@ def build_parser() -> argparse.ArgumentParser:
     pluck.add_argument("--format", choices=["webp", "jpg", "avif"])
     pluck.add_argument("--quality", type=int, default=82)
     pluck.set_defaults(func=cmd_pluck)
+
+    publish = sub.add_parser("publish", help="copy a build asset into site/img/ ($0)")
+    publish.add_argument("--project", required=True)
+    publish.add_argument("--image", required=True)
+    publish.add_argument("--out", help="output stem (default: the source stem)")
+    publish.add_argument("--width", type=int)
+    publish.add_argument("--format", choices=["webp", "jpg", "avif"], default="webp")
+    publish.add_argument("--quality", type=int, default=88)
+    publish.set_defaults(func=cmd_publish)
+
+    poster = sub.add_parser("poster", help="publish a still as a section poster ($0)")
+    poster.add_argument("--project", required=True)
+    poster.add_argument("--name", required=True, help="section name, e.g. hero")
+    poster.add_argument("--image", required=True)
+    poster.add_argument("--width", type=int, default=1600)
+    poster.set_defaults(func=cmd_poster)
 
     check = sub.add_parser("check", help="free QA gate; exits non-zero on failure")
     check.add_argument("--project", required=True)

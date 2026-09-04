@@ -264,6 +264,17 @@
   }
   .stage__overlay > * + * { margin-top: var(--gap); }
 
+  /* Scrim. Guarantees overlay contrast whichever frame happens to be behind the
+     copy — 179 of them go past, and eyeballing one is not a guarantee.
+     The BOX lives here on purpose: it used to live in brand.css, and a project
+     that wrote its own brand layer silently deleted the mechanism while leaving
+     --scrim defined and inert. The brand layer supplies the VALUE only. */
+  .stage__overlay::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: var(--scrim, none);
+  }
+  .stage__overlay > * { position: relative; }   /* above the scrim */
+
   /* A beat is a block, so its own children need the rhythm that the overlay's
      direct children used to get. When the engine stacks beats they overlap and
      the margin is inert; when it is off they flow as consecutive paragraphs. */

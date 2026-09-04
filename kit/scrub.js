@@ -97,6 +97,34 @@
     return window.innerWidth <= MOBILE_MAX ? "mobile" : "desktop";
   }
 
+  // GSAP is OPTIONAL. Without it this engine measures scroll itself and behaves
+  // exactly as before. With it, ScrollTrigger becomes the single progress
+  // source for the whole page, so the hero shares one scroll system with the
+  // section choreography instead of running a second, independent mapping.
+  //
+  // What deliberately does NOT move into GSAP: frame loading, gap tolerance,
+  // variant swapping and the reduced-motion/Save-Data stop. ScrollTrigger has
+  // no opinion about preloading 179 images, and those behaviours are what the
+  // spec's non-negotiables rest on.
+  function hasGsap() {
+    return !!(window.gsap && window.ScrollTrigger);
+  }
+
+  function bindScrollTrigger(s) {
+    window.gsap.registerPlugin(window.ScrollTrigger);
+    s.trigger = window.ScrollTrigger.create({
+      trigger: s.el,
+      start: "top top",
+      end: "bottom bottom",
+      scrub: true,
+      // Progress ONLY. Visibility stays with the IntersectionObserver below:
+      // ScrollTrigger is "active" only once the section's top reaches the
+      // viewport top, so using it to gate painting leaves the loop stopped at
+      // scroll 0 and the first frames never render.
+      onUpdate: function (self) { s.target = clamp(self.progress, 0, 1); }
+    });
+  }
+
   /* ── construction ──────────────────────────────────────────────────────── */
 
   function parseWindow(attr, fallbackStart) {
@@ -194,7 +222,8 @@
       dirty: true,
       needsSize: true,
       focusHold: false,
-      pinned: null
+      pinned: null,
+      trigger: null
     };
   }
 
@@ -400,8 +429,12 @@
 
     // Read pass first: batching getBoundingClientRect away from style writes
     // keeps this off the layout-thrash path.
-    for (var i = 0; i < sections.length; i++) {
-      if (sections[i].visible) sections[i].target = measure(sections[i]);
+    // With GSAP present, ScrollTrigger has already written s.target in its own
+    // onUpdate, so measuring again here would fight it.
+    if (!hasGsap()) {
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].visible) sections[i].target = measure(sections[i]);
+      }
     }
     for (var j = 0; j < sections.length; j++) {
       var s = sections[j];
@@ -501,6 +534,8 @@
       // Enables the optional overlapping-copy layout, independently of whether
       // any frame ever arrives — so the page looks intentional while loading.
       s.el.classList.add("is-scrubbed");
+
+      if (hasGsap()) bindScrollTrigger(s);
 
       if (window.ResizeObserver) {
         new ResizeObserver(function () { s.needsSize = true; }).observe(s.canvas);
