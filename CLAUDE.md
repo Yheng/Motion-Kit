@@ -2,16 +2,61 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status: unimplemented
+## Status: v1 built, one path unexercised
 
-The repo contains only `LICENSE` and `BUILD-SPEC.md`. **`BUILD-SPEC.md` is the contract** — it
-specifies the whole tool (CLI, provider configs, page template, scrub engine, skill) down to ffmpeg
-flags and API call shapes, and is the only source of truth for anything not yet on disk. Read it in
-full before writing code.
+All eight steps of `BUILD-SPEC.md` §13 are implemented. `BUILD-SPEC.md` remains the design contract
+and explains *why* things are shaped as they are — read it before changing anything structural — but
+the code is now the source of truth, and it corrects the spec in the places listed below.
 
-Build in the order given in §13. The `--placeholder` dry-run path (step 3) must work with **no API
-keys at all** before any provider adapter is written. First shakedown project per §14 is a mecha
-samurai — run it end to end and fix what breaks rather than polishing ahead of evidence.
+Verified end to end: the `--placeholder` and `byo` paths with no API keys, real frame slicing, and
+the page scrubbing in a real Chrome (progress 0.536 → frame 97 of 180, forward and backward, and
+zero frame requests under the skip path). **Never exercised: any live provider call.** Both adapters
+were tested only through their free paths — missing key, unknown endpoint, moderation, and recursive
+URL extraction against recorded fixtures. The Gemini adapter is doubly uncertain and marked
+`"verified": false`.
+
+Still to do: the §14 shakedown — a mecha samurai, run end to end for real. Expect it to find
+something.
+
+## Where the code corrects the spec
+
+Do not "fix" these back to what §7 and §9 say. Each was verified by measurement.
+
+- **`--trim-end` needs `-t`.** The spec's single ffmpeg pass sets `fps = count / (duration -
+  trim_end)` but never limits the input duration, so the fps filter resamples across the whole clip
+  and the trimmed tail is still emitted — 45 files instead of 30 on a measured 3s clip. `-t` is now
+  passed alongside `-vf`. Phase 8's seam remedy depends on this working.
+- **AVIF needs `-f image2 -still-picture 1`.** Otherwise ffmpeg picks the AVIF *sequence* muxer,
+  ignores `%04d`, and writes one animated file literally named `frame_%04d.avif`.
+- **Mobile frame count is capped at the desktop count.** `max(count // 2, 40)` hands the weaker
+  device *more* frames than desktop whenever count is under 80.
+- **`frames` writes the poster.** §4 shows `site/poster/` and §8 makes the poster the LCP element,
+  but no command created it. It is derived from frame 1, which is what the canvas paints first, so
+  the fade from poster to canvas is invisible.
+- **The `fields` map is per-operation** and extended past `start_image`/`end_image`, because
+  `--aspect`, `--resolution` and `--duration` have per-model names too. `null` means the model has
+  no such parameter; the value is dropped with a warning rather than sent.
+- **The brand layer lives in `site/brand.css`**, loaded after `styles.css` and deliberately
+  unlayered so it beats `@layer scaffold` without `!important`. §9 requires a per-project palette
+  but never said where it goes, and `kit/styles.css` has to stay pristine.
+- **Gemini model ids drifted before the first build.** `gemini-3-pro-image-preview` became
+  `gemini-3-pro-image`; `veo-3.1-fast-generate-preview` does not exist, the cheap tier is `lite`.
+  Veo does expose a last-frame parameter, so `--loop` works there, and its clips are 4/6/8s so
+  `--duration` snaps to a step rather than being clamped.
+
+## Things that will bite you
+
+- **Windows console encoding.** `sys.stdout.encoding` is cp1252 here, and printing the box-drawing
+  or arrow characters this CLI uses raises `UnicodeEncodeError` the moment stdout is a pipe — which
+  is how an agent and `> log.txt` both run it. `init_console()` fixes it; keep every file write at
+  an explicit `encoding="utf-8"` too.
+- **A backgrounded tab pauses `requestAnimationFrame`.** Scrolling the page with `window.scrollTo`
+  from an automation harness leaves progress pinned at 0 and looks like a dead engine. Drive it with
+  real input. `window.__scrub`, `?scrub=on|off` and `?frame=0.5` exist for automated checks.
+- **Never give hero copy a `data-in` starting at 0.** The page loads at exactly progress 0, so the
+  headline would be invisible on arrival.
+- **`state.json` is written under a lock.** Phase 7 runs clips in parallel; without `mutate_state()`
+  two writers race and one spend entry vanishes silently.
 
 ## Commands
 
