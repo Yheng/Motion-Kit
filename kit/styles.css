@@ -34,9 +34,14 @@
   p { text-wrap: pretty; }
 
   /* ── structural tokens ───────────────────────────────────────────────────
-   * Deliberately no colour tokens. Where a colour is unavoidable it is written
-   * as var(--fg, <literal>) so an unbranded page is legible, but there is no
-   * palette here to override.
+   * No colour VALUES here — not even a fallback hex. What this file owns is
+   * colour *roles* and which role each band points at. brand.css supplies the
+   * values by defining --ground-1/2, --ink-1/2, --rule-1/2, --muted-1/2.
+   *
+   * The safety property: if a brand layer defines none of them, every band
+   * falls back to a transparent ground with inherited ink — an ordinary
+   * single-ground page. The failure mode of this system is the old page. It
+   * can never be white-on-white.
    */
 
   :root {
@@ -46,21 +51,31 @@
     --z-cutout: 30;
     --z-nav: 40;
 
-    --track-h: 300vh;     /* scroll distance the hero scrubs over */
+    --track-h: 200vh;     /* scroll distance the hero scrubs over */
     --stage-h: 100svh;    /* svh, so the iOS URL bar cannot resize the stage */
     --pad-x: clamp(1rem, 4vw, 4rem);
     --pad-y: clamp(3rem, 8vw, 7rem);
     --gap: clamp(1rem, 2vw, 2rem);
+    --gap-lg: calc(var(--gap) * 2);
     --measure: 62ch;
     --radius: 4px;
     --fade-ms: 450ms;
+
+    /* the default ground, which every band inherits until it says otherwise */
+    --band-bg: var(--ground-1, transparent);
+    --band-fg: var(--ink-1, inherit);
+    --band-rule: var(--rule-1, currentColor);
+    --band-muted: var(--muted-1, inherit);
   }
 
   /* ── document ────────────────────────────────────────────────────────── */
 
   .skip-link {
     position: absolute; left: -9999px; top: 0; z-index: 100;
-    padding: 0.75rem 1rem; background: var(--bg, #fff); color: var(--fg, #111);
+    /* Canvas/CanvasText are system keywords, so this stays legible with no
+       brand layer at all — and keeps this file free of colour values. */
+    padding: 0.75rem 1rem;
+    background: var(--ground-1, Canvas); color: var(--ink-1, CanvasText);
   }
   .skip-link:focus { left: 0; }
 
@@ -71,12 +86,68 @@
     clip-path: inset(50%); white-space: nowrap;
   }
 
-  /* ── layout primitives ───────────────────────────────────────────────── */
+  /* ── layout primitives ───────────────────────────────────────────────────
+   * Two groups, and the split matters: a section takes ONE ground and ONE
+   * content shape. It is not a menu of ten equal things.
+   *
+   *   ground / width / rhythm : .band--invert .band--field .band--bleed
+   *                             .band--tight .band--tall
+   *   content shapes          : .grid-3 .steps .split .stat-row .statement
+   *                             .figure .slab .faq .logos
+   */
 
   .wrap { width: min(100% - (var(--pad-x) * 2), 76rem); margin-inline: auto; }
-  .band { padding-block: var(--pad-y); }
-  .band > .wrap > * + * { margin-top: var(--gap); }
   .measure { max-width: var(--measure); }
+
+  /* .band > .wrap > * only reaches direct children; .flow promotes the same
+     rhythm to any nesting depth the content shapes introduce. */
+  .flow > * + * { margin-top: var(--flow-gap, var(--gap)); }
+
+  /* ── ground ──────────────────────────────────────────────────────────── */
+
+  .band {
+    padding-block: var(--pad-y);
+    background: var(--band-bg);
+    color: var(--band-fg);
+  }
+  .band > .wrap > * + * { margin-top: var(--gap); }
+
+  /* One inversion mechanism, two scopes: a whole band, or a block inside one.
+     Both repoint the same four role tokens, so brand.css only ever defines the
+     roles once. */
+  .band--invert, .slab--invert {
+    --band-bg: var(--ground-2, transparent);
+    --band-fg: var(--ink-2, inherit);
+    --band-rule: var(--rule-2, currentColor);
+    --band-muted: var(--muted-2, inherit);
+  }
+  .band--field {
+    --band-bg: var(--field-bg, transparent);
+    --band-fg: var(--field-fg, inherit);
+    --band-rule: var(--field-fg, currentColor);
+    --band-muted: var(--field-fg, inherit);
+  }
+
+  /* Two adjacent inverted bands are one dark field; a hairline between them
+     reads as a seam. */
+  .band--invert + .band--invert { border-top: 0; }
+
+  /* ── width ───────────────────────────────────────────────────────────────
+   * A band's background is already edge to edge. --bleed is about CONTENT
+   * leaving the 76rem column. Media touches the viewport edge; prose keeps its
+   * gutter, or a paragraph runs 76rem wide and becomes unreadable.
+   */
+  .band--bleed > .wrap { width: 100%; max-width: none; padding-inline: 0; }
+  .band--bleed .split__body,
+  .band--bleed .statement,
+  .band--bleed .prose { padding-inline: var(--pad-x); }
+
+  /* ── rhythm ──────────────────────────────────────────────────────────── */
+
+  .band--tight { padding-block: calc(var(--pad-y) * 0.5); }
+  .band--tall { padding-block: calc(var(--pad-y) * 1.5); }
+
+  /* ── content shapes ──────────────────────────────────────────────────── */
 
   .grid-3 {
     display: grid; gap: var(--gap);
@@ -88,6 +159,55 @@
   .logos { display: flex; flex-wrap: wrap; gap: var(--gap); align-items: center; }
   .faq > dt { margin-top: var(--gap); }
 
+  .split {
+    display: grid; gap: var(--gap-lg);
+    grid-template-columns: 1fr; align-items: center;
+  }
+  @media (min-width: 48em) {
+    .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    /* Sides alternate by modifier; authors never set order by hand. */
+    .split--flip > :first-child { order: 2; }
+  }
+  .split__media img { width: 100%; height: auto; }
+  .split__body { max-width: var(--measure); }
+
+  .stat-row {
+    display: grid; gap: var(--gap);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  }
+  .stat { display: grid; gap: 0.25rem; }
+  .stat__figure {
+    font-size: var(--size-stat, 2.5em); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat__label { color: var(--band-muted); }
+
+  /* The page's one display moment below the hero. Deliberately NOT a heading:
+     headings carry document structure and are navigable, this is a shout. If
+     it must also be the section heading, put .statement on the h2. */
+  .statement {
+    font-size: var(--size-statement, clamp(2rem, 6vw, 5rem));
+    line-height: 1.02; text-wrap: balance; max-width: 22ch;
+  }
+  .statement--wide { max-width: 34ch; }
+  .statement cite {
+    display: block; font-size: 0.25em; font-style: normal;
+    margin-top: 1.5em; color: var(--band-muted);
+  }
+
+  .figure { display: grid; gap: 0.5rem; }
+  .figure img { width: 100%; height: auto; }
+  .figure figcaption { font-size: 0.875em; color: var(--band-muted); }
+
+  .slab {
+    padding: var(--pad-y) var(--pad-x);
+    background: var(--band-bg); color: var(--band-fg);
+  }
+
+  .quote { display: grid; gap: var(--gap); }
+  .quote blockquote { margin: 0; }
+  .quote figcaption { color: var(--band-muted); }
+
   /* ── nav ─────────────────────────────────────────────────────────────────
    * Outside .stage on purpose: a nav inside a sticky stage scrolls away with
    * the hero. The z-band is a page-wide contract, not a containment claim.
@@ -98,8 +218,10 @@
     display: flex; align-items: center; gap: var(--gap);
     padding: 0.75rem var(--pad-x);
   }
+  .nav__logo { text-decoration: none; }   /* an <a> defaults to underlined */
   .nav__links { margin-left: auto; }
   .nav__links ul { display: flex; gap: var(--gap); }
+  .nav__cta { white-space: nowrap; }
 
   /* ── the stage sandwich ──────────────────────────────────────────────────
    * z 40 nav (above, at document level) / 30 cutout / 20 overlay / 10 canvas
@@ -151,8 +273,10 @@
    * leave every word on the page.
    */
 
-  [data-in], [data-out] { opacity: 1; transform: none; }
-  .is-scrubbed [data-in], .is-scrubbed [data-out] { will-change: opacity, transform; }
+  [data-in], [data-out], [data-beat] { opacity: 1; transform: none; }
+  .is-scrubbed [data-in], .is-scrubbed [data-out], .is-scrubbed [data-beat] {
+    will-change: opacity, transform;
+  }
 
   /* Optional overlapping choreography — copy that replaces copy. Only applied
      once the engine is live, because stacked lines in normal flow read as a
@@ -183,7 +307,7 @@
    */
 
   @media (max-width: 767px) {
-    :root { --track-h: 240vh; }
+    :root { --track-h: 180vh; }
     .nav__links { display: none; }
   }
 
@@ -211,13 +335,14 @@
     .stage__canvas, .stage__cutout { display: none; }
 
     /* Beats any inline style the engine wrote before the preference flipped. */
-    [data-in], [data-out] { opacity: 1 !important; transform: none !important; }
+    [data-in], [data-out], [data-beat] { opacity: 1 !important; transform: none !important; }
     .is-scrubbed .stage__overlay--stack { display: block; }
     .is-scrubbed .stage__overlay--stack > * { margin-top: var(--gap); }
   }
 
   @media (forced-colors: active) {
     :focus-visible { outline: 2px solid Highlight; }
+    .band--invert, .band--field, .slab--invert { border-top: 1px solid CanvasText; }
   }
 
   @media print {
@@ -226,7 +351,8 @@
     .stage__canvas, .stage__cutout, .nav { display: none; }
     .stage__poster { position: relative; inset: auto; height: auto; }
     .stage__overlay { position: static; }
-    [data-in], [data-out] { opacity: 1 !important; transform: none !important; }
+    [data-in], [data-out], [data-beat] { opacity: 1 !important; transform: none !important; }
+    .split { grid-template-columns: 1fr; }
   }
 
 }
