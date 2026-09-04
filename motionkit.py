@@ -1322,7 +1322,19 @@ def cmd_init(args: argparse.Namespace) -> int:
     if providers and args.provider not in providers:
         die(f"unknown provider '{args.provider}' (available: {', '.join(sorted(providers))})")
 
-    if directory.exists():
+    # A directory is only a PROJECT once it has been scaffolded. Dropping
+    # reference images into out/<name>/ first is a reasonable thing to do, and
+    # refusing to init over it just because the folder exists is unhelpful.
+    is_project = (directory / "project.json").exists() or (directory / "state.json").exists()
+    if directory.exists() and not is_project:
+        loose = sorted(p.name for p in directory.iterdir() if p.is_file())
+        if loose:
+            say(f"{mark('dot')} found {len(loose)} loose file(s) here: "
+                f"{', '.join(loose[:4])}{' …' if len(loose) > 4 else ''}")
+            say(f"  Left where they are. Source stills and clips belong in "
+                f"{name}/build/.")
+
+    if is_project:
         state = load_state(name)
         if state.get("spend") and not args.force:
             spent = total_spend(state)
