@@ -1,0 +1,232 @@
+/*
+ * motion-kit — STRUCTURAL SCAFFOLDING ONLY.
+ *
+ * No palette, no typeface choices, no brand decisions of any kind live in this
+ * file. It owns box and layer: position, size, stacking order, flow. Colour and
+ * type come from brand.css, which loads after this file, is UNLAYERED, and
+ * therefore wins over everything here without needing !important and without
+ * matching selector specificity.
+ *
+ * This is a pristine template. Edit brand.css per project; never edit this.
+ *
+ * Two rules the brand layer must not break:
+ *   1. Never set position, height, inset, z-index, overflow or object-fit on
+ *      .stage, .stage__*, .scrub or .nav. Scaffold owns geometry.
+ *   2. Never put overflow:hidden, transform, filter, contain:paint or
+ *      will-change on html, body, main, or any wrapper of .scrub. Any of them
+ *      silently kills position:sticky and the hero freezes on one frame.
+ */
+
+@layer scaffold {
+
+  /* ── reset ───────────────────────────────────────────────────────────── */
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100%; }
+  h1, h2, h3, h4, p, figure, blockquote, dl, dd, ul, ol { margin: 0; }
+  ul, ol { padding: 0; list-style: none; }
+  img, canvas, svg, video { display: block; max-width: 100%; }
+  img { height: auto; }
+  a { color: inherit; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+
+  /* ── structural tokens ───────────────────────────────────────────────────
+   * Deliberately no colour tokens. Where a colour is unavoidable it is written
+   * as var(--fg, <literal>) so an unbranded page is legible, but there is no
+   * palette here to override.
+   */
+
+  :root {
+    --z-poster: 1;
+    --z-canvas: 10;
+    --z-overlay: 20;
+    --z-cutout: 30;
+    --z-nav: 40;
+
+    --track-h: 300vh;     /* scroll distance the hero scrubs over */
+    --stage-h: 100svh;    /* svh, so the iOS URL bar cannot resize the stage */
+    --pad-x: clamp(1rem, 4vw, 4rem);
+    --pad-y: clamp(3rem, 8vw, 7rem);
+    --gap: clamp(1rem, 2vw, 2rem);
+    --measure: 62ch;
+    --radius: 4px;
+    --fade-ms: 450ms;
+  }
+
+  /* ── document ────────────────────────────────────────────────────────── */
+
+  .skip-link {
+    position: absolute; left: -9999px; top: 0; z-index: 100;
+    padding: 0.75rem 1rem; background: var(--bg, #fff); color: var(--fg, #111);
+  }
+  .skip-link:focus { left: 0; }
+
+  :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+
+  /* ── layout primitives ───────────────────────────────────────────────── */
+
+  .wrap { width: min(100% - (var(--pad-x) * 2), 76rem); margin-inline: auto; }
+  .band { padding-block: var(--pad-y); }
+  .band > .wrap > * + * { margin-top: var(--gap); }
+  .measure { max-width: var(--measure); }
+
+  .grid-3 {
+    display: grid; gap: var(--gap);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  }
+  .steps { display: grid; gap: var(--gap); counter-reset: step; }
+  .steps > li { counter-increment: step; }
+  .steps > li::before { content: counter(step) ". "; }
+  .logos { display: flex; flex-wrap: wrap; gap: var(--gap); align-items: center; }
+  .faq > dt { margin-top: var(--gap); }
+
+  /* ── nav ─────────────────────────────────────────────────────────────────
+   * Outside .stage on purpose: a nav inside a sticky stage scrolls away with
+   * the hero. The z-band is a page-wide contract, not a containment claim.
+   */
+
+  .nav {
+    position: sticky; top: 0; z-index: var(--z-nav);
+    display: flex; align-items: center; gap: var(--gap);
+    padding: 0.75rem var(--pad-x);
+  }
+  .nav__links { margin-left: auto; }
+  .nav__links ul { display: flex; gap: var(--gap); }
+
+  /* ── the stage sandwich ──────────────────────────────────────────────────
+   * z 40 nav (above, at document level) / 30 cutout / 20 overlay / 10 canvas
+   * / 1 poster. Declared once, here, and nowhere else.
+   */
+
+  .scrub { position: relative; height: var(--track-h); }
+
+  .stage {
+    position: sticky; top: 0;
+    height: 100vh; height: var(--stage-h);
+    overflow: clip;        /* clip, NOT hidden: overflow:hidden makes a scroll
+                              container, and a scroll container above .scrub
+                              silently breaks position:sticky */
+    isolation: isolate;    /* the z-band cannot leak past the nav */
+  }
+
+  .stage__poster,
+  .stage__canvas,
+  .stage__cutout {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  .stage__poster { z-index: var(--z-poster); }
+
+  .stage__canvas {
+    z-index: var(--z-canvas);
+    opacity: 0;                                   /* the poster is the LCP element */
+    transition: opacity var(--fade-ms) linear;
+  }
+  .is-live .stage__canvas { opacity: 1; }
+
+  .stage__overlay {
+    position: absolute; inset: 0; z-index: var(--z-overlay);
+    display: grid; align-content: end;
+    padding: var(--pad-y) var(--pad-x);
+    pointer-events: none;                          /* never eats clicks */
+  }
+  .stage__overlay > * + * { margin-top: var(--gap); }
+  .stage__overlay a, .stage__overlay button { pointer-events: auto; }
+
+  .stage__cutout { z-index: var(--z-cutout); pointer-events: none; }
+
+  /* ── overlay copy ────────────────────────────────────────────────────────
+   * Visible by default. The engine only ever removes visibility, and only once
+   * it is running, so no-JS / reduced-motion / Save-Data / a script error all
+   * leave every word on the page.
+   */
+
+  [data-in], [data-out] { opacity: 1; transform: none; }
+  .is-scrubbed [data-in], .is-scrubbed [data-out] { will-change: opacity, transform; }
+
+  /* Optional overlapping choreography — copy that replaces copy. Only applied
+     once the engine is live, because stacked lines in normal flow read as a
+     jumbled pile. Inside a fixed-height sticky box, so it cannot shift layout. */
+  .is-scrubbed .stage__overlay--stack { display: grid; }
+  .is-scrubbed .stage__overlay--stack > * { grid-area: 1 / 1; margin-top: 0; }
+
+  /* ── controls ────────────────────────────────────────────────────────── */
+
+  .btn {
+    display: inline-block; padding: 0.75em 1.4em;
+    border: 1px solid currentColor; border-radius: var(--radius);
+    text-decoration: none; cursor: pointer;
+  }
+  .form { display: grid; gap: 0.5rem; max-width: 32rem; }
+  .form input, .form textarea {
+    padding: 0.6em 0.8em; border: 1px solid currentColor;
+    border-radius: var(--radius); background: transparent;
+  }
+
+  /* ── footer ──────────────────────────────────────────────────────────── */
+
+  .footer { padding: var(--pad-y) 0; }
+  .footer .wrap > * + * { margin-top: var(--gap); }
+
+  /* ── mobile ──────────────────────────────────────────────────────────────
+   * 767px must equal MOBILE_MAX in scrub.js.
+   */
+
+  @media (max-width: 767px) {
+    :root { --track-h: 240vh; }
+    .nav__links { display: none; }
+  }
+
+  /* ── reduced motion: unstick the stage entirely ──────────────────────────
+   * The result is a conventional page — image, headline, lede, CTA, then the
+   * content bands. Nothing sticky, nothing hidden, no canvas, zero frames.
+   */
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    .scrub { height: auto; }
+    .stage { position: static; height: auto; overflow: visible; }
+
+    .stage__poster {
+      position: relative; inset: auto;
+      height: auto; aspect-ratio: 16 / 9;
+    }
+    .stage__overlay { position: static; padding-block: var(--gap); }
+    .stage__canvas, .stage__cutout { display: none; }
+
+    /* Beats any inline style the engine wrote before the preference flipped. */
+    [data-in], [data-out] { opacity: 1 !important; transform: none !important; }
+    .is-scrubbed .stage__overlay--stack { display: block; }
+    .is-scrubbed .stage__overlay--stack > * { margin-top: var(--gap); }
+  }
+
+  @media (forced-colors: active) {
+    :focus-visible { outline: 2px solid Highlight; }
+  }
+
+  @media print {
+    .scrub { height: auto; }
+    .stage { position: static; height: auto; }
+    .stage__canvas, .stage__cutout, .nav { display: none; }
+    .stage__poster { position: relative; inset: auto; height: auto; }
+    .stage__overlay { position: static; }
+    [data-in], [data-out] { opacity: 1 !important; transform: none !important; }
+  }
+
+}

@@ -1,0 +1,82 @@
+/*
+ * motion-kit — THE BRAND LAYER. This is the file to edit per project.
+ *
+ * styles.css is structural scaffolding and stays pristine. This file carries
+ * every design decision: palette, typography, texture, rhythm. It loads after
+ * styles.css and is deliberately UNLAYERED, so it beats the @layer scaffold
+ * rules there regardless of specificity — you never need !important, and you
+ * never need to match a scaffold selector exactly.
+ *
+ * Two things this file must never do, because they break the effect:
+ *   1. Do not set position, height, inset, z-index, overflow or object-fit on
+ *      .stage, .stage__*, .scrub or .nav. Scaffold owns geometry.
+ *   2. Do not put overflow:hidden, transform, filter, contain:paint or
+ *      will-change on html, body, main, or any wrapper of .scrub. Any of those
+ *      silently kills position:sticky and the hero freezes on a single frame.
+ *
+ * What follows is a deliberately neutral placeholder so an unbranded page is
+ * legible. Replace all of it — a real direction picks five named colours and
+ * two type families with roles.
+ *
+ * A note on web fonts: they are the most likely source of layout shift on this
+ * page, because the H1 is enormous. Self-host woff2, preload the display face,
+ * and use font-display:optional, or swap with a metric-matched fallback.
+ * Nothing here may load from a third-party origin — site/ must stay
+ * self-contained and deployable as a folder.
+ */
+
+:root {
+  --fg: #14161a;
+  --bg: #fbfbfa;
+  --muted: #5c626b;
+  --accent: #14161a;
+  --rule: #dcdde0;
+
+  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  line-height: 1.6;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+
+.display { font-size: clamp(2.5rem, 7vw, 6rem); }
+h2 { font-size: clamp(1.75rem, 3.5vw, 3rem); }
+h3 { font-size: 1.125rem; }
+
+.eyebrow {
+  font-size: 0.8125rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lede { font-size: clamp(1.05rem, 1.6vw, 1.35rem); max-width: var(--measure); }
+.measure, .band p { max-width: var(--measure); }
+
+/* The hero sits over a dark plate, so its copy is light regardless of the page
+   background. This is the one place the two colour schemes meet. */
+.stage__overlay { color: #f4f4f6; }
+.stage__overlay .eyebrow { color: #a9adb6; }
+
+.nav { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(8px); }
+.nav__logo, .footer__logo { font-family: var(--font-display); font-weight: 650; }
+
+.btn { border-color: currentColor; }
+.btn:hover { background: var(--fg); color: var(--bg); }
+.stage__overlay .btn:hover { background: #f4f4f6; color: #14161a; }
+
+.band + .band { border-top: 1px solid var(--rule); }
+.footer { border-top: 1px solid var(--rule); color: var(--muted); }
+.scroll-hint { font-size: 0.8125rem; letter-spacing: 0.16em; text-transform: uppercase; }
