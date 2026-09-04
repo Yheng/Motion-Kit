@@ -20,8 +20,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
+import collections
 import contextlib
 import fnmatch
+import hashlib
 import json
 import os
 import platform
@@ -567,6 +570,225 @@ def clamp_duration(config: dict, seconds: float) -> "tuple[float, bool]":
     return seconds, changed
 
 
+# ── http ─────────────────────────────────────────────────────────────────────
+
+POLL_INTERVAL = 6.0
+POLL_CEILING = 40 * 60
+RETRY_MAX = 5
+HTTP_TIMEOUT = 60
+DOWNLOAD_TIMEOUT = 600
+#: Over this, a still is downscaled before inlining. A 4K PNG is ~8 MB, which is
+#: ~11 MB once base64'd, and bodies that size get rejected or time out.
+DATA_URI_MAX_BYTES = 6 * 1024 * 1024
+
+RETRY_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+
+
+def http_request(url: str, *, method: str = "GET", headers: "dict | None" = None,
+                 body: "bytes | None" = None, timeout: float = HTTP_TIMEOUT,
+                 retries: int = 0) -> "tuple[int, dict, bytes]":
+    """One HTTP call.
+
+    `retries` defaults to zero, and that default is the double-charge guard: a
+    job-creating POST that times out may already have started a billable job,
+    so only explicitly idempotent callers (polls, downloads) opt in.
+    """
+    attempt = 0
+    while True:
+        try:
+            request = urllib.request.Request(url, data=body, method=method,
+                                             headers=dict(headers or {}))
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.status, dict(response.headers), response.read()
+        except urllib.error.HTTPError as exc:
+            payload = exc.read()
+            if attempt < retries and exc.code in RETRY_STATUSES:
+                _backoff(attempt, exc.headers.get("Retry-After") if exc.headers else None)
+                attempt += 1
+                continue
+            return exc.code, dict(exc.headers or {}), payload
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            if attempt < retries:
+                _backoff(attempt, None)
+                attempt += 1
+                continue
+            die(f"network error calling {url.split('?')[0]}: {exc}")
+
+
+def _backoff(attempt: int, retry_after: "str | None") -> None:
+    delay = 2.0 ** attempt
+    if retry_after:
+        with contextlib.suppress(ValueError):
+            delay = max(delay, float(retry_after))
+    time.sleep(min(delay, 60.0))
+
+
+def http_json(url: str, *, method: str = "GET", headers: "dict | None" = None,
+              payload=None, timeout: float = HTTP_TIMEOUT,
+              retries: int = 0) -> "tuple[int, object]":
+    head = dict(headers or {})
+    body = None
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        head.setdefault("Content-Type", "application/json")
+    status, _, raw = http_request(url, method=method, headers=head, body=body,
+                                  timeout=timeout, retries=retries)
+    try:
+        return status, json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return status, {"_raw": raw.decode("utf-8", "replace")[:2000]}
+
+
+def sniff_mime(data: bytes) -> str:
+    """Identify by magic bytes, never by extension — a .png that is really a JPEG is common."""
+    if data.startswith(b"\x89PNG"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[4:8] == b"ftyp":
+        return "image/avif" if data[8:12] in (b"avif", b"avis") else "video/mp4"
+    if data.startswith(b"\x1a\x45\xdf\xa3"):
+        return "video/webm"
+    return "application/octet-stream"
+
+
+def extension_for(mime: str) -> str:
+    return {
+        "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp",
+        "image/avif": ".avif", "video/mp4": ".mp4", "video/webm": ".webm",
+    }.get(mime, ".bin")
+
+
+def data_uri(path: Path) -> str:
+    """Inline a local image, which avoids a separate upload step and its lifecycle."""
+    raw = path.read_bytes()
+    if len(raw) > DATA_URI_MAX_BYTES:
+        warn(f"{path.name} is {len(raw) / 1e6:.1f} MB; large bodies are often rejected. "
+             f"Consider a smaller still.")
+    return f"data:{sniff_mime(raw)};base64,{base64.b64encode(raw).decode('ascii')}"
+
+
+def find_asset_url(obj) -> "str | None":
+    """Breadth-first search for the first http url/uri anywhere in the response.
+
+    Response shapes vary across models and change over time, so a fixed path
+    would break on the next model rather than the next decade.
+    """
+    queue = collections.deque([obj])
+    while queue:
+        node = queue.popleft()
+        if isinstance(node, dict):
+            for key in ("url", "uri"):
+                value = node.get(key)
+                if isinstance(value, str) and value.startswith("http"):
+                    return value
+            queue.extend(node.values())
+        elif isinstance(node, list):
+            queue.extend(node)
+    return None
+
+
+def find_inline_bytes(obj) -> "tuple[bytes, str] | None":
+    """Some providers return base64 inline instead of a URL."""
+    queue = collections.deque([obj])
+    while queue:
+        node = queue.popleft()
+        if isinstance(node, dict):
+            for key in ("data", "bytesBase64Encoded", "b64_json"):
+                value = node.get(key)
+                if isinstance(value, str) and len(value) > 256:
+                    with contextlib.suppress(ValueError):
+                        raw = base64.b64decode(value, validate=False)
+                        return raw, sniff_mime(raw)
+            queue.extend(node.values())
+        elif isinstance(node, list):
+            queue.extend(node)
+    return None
+
+
+def looks_moderated(config: dict, blob: str) -> bool:
+    lowered = blob.lower()
+    return any(p in lowered for p in (config.get("moderation_patterns") or []))
+
+
+def job_fingerprint(provider: str, op: str, model_id: str, payload: dict) -> str:
+    """Identity of a job, so an interrupted run resumes instead of paying twice."""
+    canonical = json.dumps({"p": provider, "o": op, "m": model_id, "b": payload},
+                           sort_keys=True, default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+# ── fal adapter ──────────────────────────────────────────────────────────────
+
+def fal_submit(config: dict, model_id: str, payload: dict) -> dict:
+    key = provider_key(config)
+    base = config.get("queue_base", "https://queue.fal.run").rstrip("/")
+    # retries=0: a POST that times out may already have created a billable job.
+    status, body = http_json(f"{base}/{model_id}", method="POST",
+                             headers={"Authorization": f"Key {key}"},
+                             payload=payload, retries=0)
+    if status == 404 or (isinstance(body, dict) and "not found" in str(body).lower()):
+        die(f"{config.get('name')} does not know the endpoint '{model_id}'.\n"
+            f"  Model ids drift. Edit providers/fal.json — do not guess a replacement.\n"
+            f"  Catalogue: {config.get('catalog_url', 'https://fal.ai/models')}", code=3)
+    if status in (401, 403):
+        die(f"{config.get('key_env')} was rejected ({status}). "
+            f"Check the key at {config.get('key_url')}", code=3)
+    if status >= 400 or not isinstance(body, dict):
+        die(f"{config.get('name')} refused the request ({status}): "
+            f"{json.dumps(body)[:400]}", code=3)
+
+    request_id = body.get("request_id")
+    if not request_id:
+        die(f"no request_id in the queue response: {json.dumps(body)[:400]}", code=3)
+    return {
+        "request_id": request_id,
+        "status_url": body.get("status_url") or f"{base}/{model_id}/requests/{request_id}/status",
+        "response_url": body.get("response_url") or f"{base}/{model_id}/requests/{request_id}",
+    }
+
+
+def fal_poll(config: dict, handle: dict) -> "tuple[str, dict]":
+    key = provider_key(config)
+    status, body = http_json(handle["status_url"],
+                             headers={"Authorization": f"Key {key}"}, retries=RETRY_MAX)
+    if status >= 400 or not isinstance(body, dict):
+        return "running", {}
+    state = str(body.get("status", "")).upper()
+    if state == "COMPLETED":
+        return "done", body
+    if state in ("FAILED", "ERROR", "CANCELLED"):
+        return ("rejected" if looks_moderated(config, json.dumps(body)) else "failed"), body
+    return "running", body
+
+
+def fal_fetch(config: dict, handle: dict) -> "tuple[bytes, str]":
+    key = provider_key(config)
+    auth = {"Authorization": f"Key {key}"}
+    status, body = http_json(handle["response_url"], headers=auth, retries=RETRY_MAX)
+    if status >= 400:
+        die(f"could not collect the finished job ({status}): {json.dumps(body)[:300]}", code=3)
+    if looks_moderated(config, json.dumps(body)):
+        return b"", "rejected"
+
+    url = find_asset_url(body)
+    if url:
+        _, _, raw = http_request(url, timeout=DOWNLOAD_TIMEOUT, retries=RETRY_MAX)
+        return raw, sniff_mime(raw)
+    inline = find_inline_bytes(body)
+    if inline:
+        return inline
+    die(f"no asset url found anywhere in the response: {json.dumps(body)[:400]}", code=3)
+
+
+ADAPTERS = {
+    "fal": {"submit": fal_submit, "poll": fal_poll, "fetch": fal_fetch,
+            "interval": POLL_INTERVAL},
+}
+
+
 # ── ffmpeg operations ────────────────────────────────────────────────────────
 
 #: Placeholder clips match the canonical 6s render, so the fps arithmetic on the
@@ -891,6 +1113,233 @@ def cmd_cost(args: argparse.Namespace) -> int:
     return 0
 
 
+def build_payload(config: dict, op: str, model_id: str, params: dict) -> dict:
+    """Map the CLI's own vocabulary onto this model's wire field names."""
+    fields = op_fields(config, op, model_id)
+    if fields is None:
+        die(f"{config.get('name')} has no {op} model. "
+            f"Text-behind directions need a provider that does.", code=2)
+
+    payload: dict = {}
+    for logical, value in params.items():
+        if value is None:
+            continue
+        if logical not in fields:
+            warn(f"{model_id}: no mapping for '{logical}' in providers/*.json — dropping it")
+            continue
+        wire = fields[logical]
+        if wire is None:
+            warn(f"{model_id} has no '{logical}' parameter — ignoring it")
+            continue
+        payload[wire] = value
+    return payload
+
+
+def run_generation(project: str, op: str, *, out_name: str, params: dict,
+                   cli_model: "str | None", note: str,
+                   derived_from: "str | None" = None,
+                   overwrite: bool = False) -> Path:
+    """Submit, poll, collect and record one paid job.
+
+    Everything that is not provider-specific lives here: the estimate printed
+    before spending, the in-flight record that makes a crash resumable rather
+    than expensive, and the spend row.
+    """
+    directory = require_project(project)
+    project_config = load_project_config(project)
+    config = load_provider(project_config.get("provider", "fal"))
+
+    if not config.get("generation", True):
+        die(f"{config.get('name')} does not generate anything.\n"
+            f"  Put your own file at {directory / 'build' / out_name} and carry on —\n"
+            f"  any clip with continuous camera motion works, and everything\n"
+            f"  downstream of build/ is free.", code=2)
+
+    adapter = ADAPTERS.get(config.get("kind", ""))
+    if adapter is None:
+        die(f"no adapter for provider kind '{config.get('kind')}'", code=2)
+
+    key = provider_key(config)
+    if not key:
+        die(f"{config.get('key_env')} is not set — add it to .env.\n"
+            f"  Get one at {config.get('key_url')}", code=2)
+
+    model_key, model_id = resolve_model(config, project_config, op, cli_model)
+
+    if params.get("duration") is not None:
+        params["duration"], _ = clamp_duration(config, float(params["duration"]))
+
+    out_path = directory / "build" / out_name
+    if out_path.exists() and not overwrite:
+        die(f"{out_path} already exists. Choose another --out, or pass --overwrite.\n"
+            f"  Refusing by default because re-rendering costs money.", code=2)
+
+    payload = build_payload(config, op, model_id, params)
+    usd, breakdown = estimate_usd(config, op, model_key, params)
+    state = load_state(project)
+    running = total_spend(state)
+
+    # The estimate is always printed before anything is submitted.
+    rule(f"{op} — {config.get('name')}")
+    say(f"  model     {model_id}")
+    say(f"  estimate  ${usd:.4f}   ({breakdown})")
+    say(f"  project   ${running:.2f} spent so far → ${running + usd:.2f} if this succeeds")
+    if config.get("verified") is False:
+        warn("this adapter has never been run against the live API; expect surprises")
+    for notice in config.get("notices") or []:
+        say(f"  note      {notice}")
+
+    fingerprint = job_fingerprint(config.get("kind", "?"), op, model_id, payload)
+    existing = (state.get("jobs") or {}).get(fingerprint)
+
+    if existing:
+        say(f"  {mark('warn')} an identical job was already submitted at "
+            f"{existing.get('submitted')} — resuming it rather than paying again")
+        handle = existing["handle"]
+    else:
+        say(f"  {mark('dot')} submitting…")
+        handle = adapter["submit"](config, model_id, payload)
+        # Recorded BEFORE the first poll. If this process dies mid-poll the job
+        # keeps running and is still billed; without this record a re-run would
+        # submit a second one and pay twice.
+        with mutate_state(project) as mutable:
+            mutable.setdefault("jobs", {})[fingerprint] = {
+                "handle": handle, "op": op, "model": model_id,
+                "estimate_usd": usd, "out": out_name, "submitted": now_iso(),
+            }
+
+    started = time.monotonic()
+    outcome, response = "running", {}
+    while True:
+        outcome, response = adapter["poll"](config, handle)
+        if outcome != "running":
+            break
+        if time.monotonic() - started > POLL_CEILING:
+            say(f"\n  {mark('warn')} still running after {POLL_CEILING // 60} minutes. "
+                f"The job is NOT cancelled and may still bill.")
+            say(f"  Re-run the identical command to resume polling "
+                f"(request {handle.get('request_id')}).")
+            return out_path
+        time.sleep(adapter["interval"])
+
+    elapsed = time.monotonic() - started
+
+    if outcome in ("failed", "rejected"):
+        with mutate_state(project) as mutable:
+            (mutable.get("jobs") or {}).pop(fingerprint, None)
+            mutable["spend"].append({
+                "at": now_iso(), "kind": op, "provider": config.get("kind"),
+                "model": model_id, "usd": 0.0, "billable": False,
+                "estimated": True, "elapsed_s": round(elapsed, 1),
+                "job_id": handle.get("request_id"), "asset": None,
+                "note": f"{outcome.upper()} — not billed. {note}".strip(),
+            })
+        detail = json.dumps(response)[:400]
+        if outcome == "rejected":
+            die(f"the provider's moderation rejected this prompt. You were NOT billed.\n"
+                f"  Rephrasing usually works: 'bursts outward in slow motion' passes\n"
+                f"  where 'explodes' does not.\n  {detail}", code=4)
+        die(f"the job failed. You were NOT billed.\n  {detail}", code=3)
+
+    raw, mime = adapter["fetch"](config, handle)
+    if mime == "rejected" or not raw:
+        die("the provider returned no asset (moderation). You were NOT billed.", code=4)
+
+    if not out_path.suffix:
+        out_path = out_path.with_suffix(extension_for(mime))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_name(out_path.name + ".tmp")
+    tmp.write_bytes(raw)
+    os.replace(tmp, out_path)
+
+    stem = out_path.stem
+    with mutate_state(project) as mutable:
+        (mutable.get("jobs") or {}).pop(fingerprint, None)
+        mutable["spend"].append({
+            "at": now_iso(), "kind": op, "provider": config.get("kind"),
+            "model": model_id, "usd": usd, "billable": True, "estimated": True,
+            "elapsed_s": round(elapsed, 1), "job_id": handle.get("request_id"),
+            "asset": stem, "note": note,
+        })
+        mutable["assets"][stem] = {
+            "kind": op, "path": rel_posix(out_path, directory),
+            "bytes": len(raw), "at": now_iso(),
+            "provider": config.get("kind"), "model": model_id,
+            "params": {k: v for k, v in params.items() if k != "start_image"},
+            "prompt": params.get("prompt"), "usd": usd,
+            "job_id": handle.get("request_id"), "derived_from": derived_from,
+            "approved": False,
+        }
+        new_total = total_spend(mutable)
+
+    say(f"  {mark('ok')} {out_path.name}  {len(raw) / 1e6:.2f} MB in {elapsed:.0f}s")
+    say(f"  cost      ${usd:.4f} this call, ${new_total:.2f} on this project so far")
+    return out_path
+
+
+def cmd_image(args: argparse.Namespace) -> int:
+    run_generation(
+        args.project, "image", out_name=args.out, cli_model=args.model,
+        note=args.note or "", overwrite=args.overwrite,
+        params={"prompt": args.prompt, "aspect": args.aspect, "resolution": args.resolution},
+    )
+    return 0
+
+
+def cmd_video(args: argparse.Namespace) -> int:
+    directory = require_project(args.project)
+    still = Path(args.image)
+    for option in (still, directory / still, directory / "build" / still.name):
+        if option.is_file():
+            still = option
+            break
+    else:
+        die(f"no still at {args.image}")
+
+    params = {
+        "prompt": args.prompt,
+        "start_image": data_uri(still),
+        "duration": args.duration,
+        "resolution": args.resolution,
+        "aspect": args.aspect,
+    }
+    if args.loop:
+        # The sequence returns to its first frame, so the scrub has no seam.
+        params["end_image"] = params["start_image"]
+
+    run_generation(
+        args.project, "video", out_name=args.out, cli_model=args.model,
+        note=args.note or ("looping" if args.loop else ""),
+        derived_from=still.stem, overwrite=args.overwrite, params=params,
+    )
+    return 0
+
+
+def cmd_cutout(args: argparse.Namespace) -> int:
+    directory = require_project(args.project)
+    source = Path(args.image)
+    for option in (source, directory / source, directory / "build" / source.name):
+        if option.is_file():
+            source = option
+            break
+    else:
+        die(f"no image at {args.image}")
+
+    out_name = args.out or f"{source.stem}_cutout.png"
+    path = run_generation(
+        args.project, "cutout", out_name=out_name, cli_model=args.model,
+        note="alpha matte", derived_from=source.stem, overwrite=args.overwrite,
+        params={"start_image": data_uri(source)},
+    )
+
+    # Publish into site/ as well: transparency rules out JPEG, so this stays PNG.
+    published = directory / "site" / "cutout" / path.name
+    published.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(path, published)
+    say(f"  {mark('ok')} published {rel_posix(published, directory / 'site')}")
+    return 0
+
+
 CLIP_EXTENSIONS = (".mp4", ".mov", ".webm", ".mkv", ".m4v")
 
 
@@ -1082,6 +1531,39 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--force", action="store_true",
                       help="refresh templates in an existing project, keeping build/ and spend")
     init.set_defaults(func=cmd_init)
+
+    def add_paid(parser):
+        parser.add_argument("--project", required=True)
+        parser.add_argument("--model", help="catalogue key or literal model id")
+        parser.add_argument("--note", help="recorded against the spend entry")
+        parser.add_argument("--overwrite", action="store_true",
+                            help="replace an existing output (re-rendering costs money)")
+
+    image = sub.add_parser("image", help="generate a still into build/")
+    add_paid(image)
+    image.add_argument("--prompt", required=True)
+    image.add_argument("--out", required=True, help="filename inside build/")
+    image.add_argument("--aspect", default="16:9")
+    image.add_argument("--resolution")
+    image.set_defaults(func=cmd_image)
+
+    video = sub.add_parser("video", help="animate a still into build/")
+    add_paid(video)
+    video.add_argument("--prompt", required=True)
+    video.add_argument("--image", required=True, help="the approved still")
+    video.add_argument("--out", required=True, help="filename inside build/")
+    video.add_argument("--duration", type=float, default=6.0)
+    video.add_argument("--resolution", default="720p")
+    video.add_argument("--aspect", default="16:9")
+    video.add_argument("--loop", action="store_true",
+                       help="end on the first frame so the scrub has no seam")
+    video.set_defaults(func=cmd_video)
+
+    cutout = sub.add_parser("cutout", help="background removal to a PNG with alpha")
+    add_paid(cutout)
+    cutout.add_argument("--image", required=True)
+    cutout.add_argument("--out", help="default: <image>_cutout.png")
+    cutout.set_defaults(func=cmd_cutout)
 
     frames = sub.add_parser("frames", help="slice a clip into numbered frames")
     frames.add_argument("--project", required=True)
