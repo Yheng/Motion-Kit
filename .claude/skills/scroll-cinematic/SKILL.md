@@ -77,11 +77,15 @@ often the one that gets picked, and it guards against every brief drifting
 toward the same attractor.
 
 Each direction is a **complete package**, because a beginner cannot assemble a
-page from a parts bin:
+page from a parts bin. Print it under two headings.
+
+#### The shot
 
 - **Name**
 - **Palette** — five named hex values
-- **Type** — two families with roles, or one at contrasting weights
+- **Type** — a **pairing with roles**: which face carries display, which carries
+  text, which carries data. Not two family names. A font CDN is permitted;
+  preload only the display face.
 - **Scene** — subject, materials, lighting, background
 - **Motion** — the camera move in plain language
 - **Text-behind** — propose it *only* where the scene supports it, which means
@@ -101,6 +105,49 @@ page from a parts bin:
   subject either.
 - **Who it's for** — one line
 
+#### The page
+
+These five are **derived, never asked**. The user still replies "1, 2 or 3" and
+never sees a twelfth question — you read them off the register the shot already
+committed to:
+
+| Register | Ground rhythm | Scale break | Accent bias | Hero share |
+| --- | --- | --- | --- | --- |
+| Clinical / catalogue | `single-anchor` | quiet ≈3× | rule, numeral, stat | `punctuation` |
+| Editorial / documentary | `alternating` | editorial ≈5× | rule, mark, link | `chapter` |
+| Adrenal / cinematic | `descending` | poster ≈9× | field, cta, mark | `overture` |
+| Luxe / restrained | `bookended` | editorial ≈6× | rule, eyebrow, cta | `chapter` |
+
+- **Ground rhythm** — `single-anchor` (one inverted band, at the peak) ·
+  `bookended` (both CTA bands invert) · `alternating` (every other band from the
+  second) · `descending` (grounds darken monotonically). Plus **exactly one**
+  full-bleed band. A page where every band is the same ground is the defect this
+  field exists to prevent.
+- **Scale break** — the display÷body ratio, **and it must hold below the hero**.
+  A page that is 9× in the stage and 2.5rem everywhere else reads as flat no
+  matter how good the hero is. Name the one section carrying the page's biggest
+  statement below the fold — exactly one, mandatory and singular.
+- **Accent licence** — three or four roles from `cta` · `rule` · `numeral` ·
+  `eyebrow` · `link` · `stat` · `mark` · `field`, at least one of them
+  structural. Accent on buttons and links only is how a five-colour palette
+  ships as two.
+- **Supporting imagery** — two to four, each naming its source. **At least one
+  must be a plucked frame**: free, and on-brand by construction because it is
+  the same subject, light and lens.
+- **Hero share** — `overture` 300vh · `chapter` 200vh (default) ·
+  `punctuation` 150vh. The track may not exceed **40% of document scroll**.
+
+What the user actually sees is five short lines — the explanation above is for
+you, not for them:
+
+> **The page** — Ground rhythm: single-anchor; `#record` inverts, `#systems`
+> bleeds. Scale break: quiet 3×, peak is `#record`. Accent: machine red on cta,
+> numeral, mark; blueprint on rule, link. Imagery: three, all free — frames 43,
+> 71 and a cropped 15. Hero share: punctuation, 150vh.
+
+If the printed "The page" block runs longer than the printed "The shot", it has
+become a config file. Cut it back.
+
 Then the escape ladder, verbatim:
 
 > Reply **1**, **2** or **3**. Or: **mix** (say which parts of which), **more**
@@ -114,23 +161,125 @@ sample from that space, so do not render by default.
 
 Record the choice in `state.json` approvals.
 
-### Phase 4 — Architecture
+### Phase 4 — Architecture and the beat map
 
 The section skeleton, each section's job, and the CTA ladder. Decide **here, in
 context**, how many scrub sections and where — one hero orbit with conventional
 reveals below, or two scrub sections bracketing the proof content. This is a
 pacing judgement per brief, never a hardcoded default.
 
+#### The default page shape
+
+Offer it whole. It satisfies its own budgets and cannot read as identical boxes:
+
+```
+#hero            .scrub
+#what            .band                            grid-3
+#systems         .band .band--bleed               split, media from a plucked frame
+#record          .band .band--invert .band--tall  statement + stat-row   ← the peak
+#cta-mid         .band .band--tight               prose + btn
+#specification   .band                            dl
+#contact         .band .band--field               prose + btn
+```
+
+Six budgets, enforced by `motionkit.py check`, not merely advised:
+
+1. One ground per band — `--invert` and `--field` are mutually exclusive.
+2. The inversion count comes from the direction's ground rhythm.
+3. One `--bleed` per page. A second cancels the first.
+4. One `.statement` per page, in the section named as the peak. Never in the hero.
+5. Content shapes never adjacent, and none more than twice.
+6. At most **two** loud moves per band — invert/field, bleed, statement,
+   stat-row. The peak band is the sole exception at three. That is what makes it
+   the peak.
+
+#### The beat map
+
+**Look at the frames before writing a word about them.**
+
+```
+python motionkit.py contact --project <p> --name hero
+```
+
+It tiles the sequence into one sheet and prints the cell→frame mapping. Read it.
+Arithmetic is not a substitute: on the reference build SSIM read flat from frame
+23 to 157 because it cannot tell 90° from 270°, and the sheet showed a clean
+revolution plus a doorway the model had invented that was never in the approved
+still.
+
+1. Write **one observation per cell** — angle, what is newly visible, what has
+   left. Observation only, no copy.
+2. Collapse them into **three to five beats**. A beat is a stretch where the
+   picture says one thing, not a moment. Two is the bland page; six is a
+   slideshow.
+3. **The naming rule.** Every beat's sentence must contain a concrete noun
+   visible in that frame range and *not* in the previous one. If you cannot name
+   one, the beat is decoration — cut it or move the range. This is the
+   mechanical fix for copy that ignores the picture.
+4. **The reverse rule.** Scrubbing runs backwards. Beats are independent
+   statements, never a sequence with connectives like "first" or "and finally".
+   This is what separates a beat map from a video script.
+5. Record it with `phase --approve architecture --note "..."` so a resume keeps
+   it.
+
+Then ask two numbered-choice questions — never "what should the copy say":
+
+> **The sequence shows the subject from several angles. Which one is the argument?**
+> **1** The front — it is imposing, and that is the pitch.
+> **2** What you only see when it turns — the proof of how it is built.
+> **3** The profile — the mechanism is the story.
+
+> **How hard should the copy commit to the picture?**
+> **1 Narrate** — each line names what is on screen. Strongest, and it dates the
+> copy to this clip.
+> **2 Rhyme** — the copy runs its own argument and each beat lands on a frame
+> that supports it. Safer if the clip may be re-rendered.
+> **3 Hold** — one headline, no beats. Right for a short punchy hero.
+
+Ask the second honestly: narrating couples the copy to this render, so
+re-rendering the clip makes the copy wrong. Default **2** for client work, **1**
+where the subject *is* the product.
+
 ### Phase 5 — Copy. **[GATE]**
 
 Every word: nav labels, H1, section headings, body, CTA microcopy, footer, alt
 text, meta description. Place keywords where they read naturally.
 
-- **Mark every invented claim** — brand names, statistics, testimonials, client
-  counts — in `{{...}}` and list them at the end of the phase. Nothing fictional
-  reaches production unnoticed.
+- **Mark load-bearing invented claims** — brand names, statistics,
+  testimonials, client counts, dates — in `{{...}}` and list them at the end of
+  the phase. **Only load-bearing ones.** Marking every noun flags nothing: the
+  reference build shipped 26 markers, which is indistinguishable from marking
+  none. Nothing fictional reaches production unnoticed, and `check` fails while
+  any remain.
 - **Fix hero composition here.** If the H1 sits left, the still brief says the
   subject anchors right. Retrofitting composition costs a re-render.
+
+#### Depth — the fix for "the copywriting lacks information"
+
+A section that says nothing specific is a wireframe with prose in it.
+
+- Every section carries **at least one concrete, checkable specific** — a
+  number, a material, a constraint, a named part. "Serviceable" is a claim;
+  "armour comes off in eleven pieces with hand tools" is information.
+- A value-prop item is two or three sentences, not one clause. A `steps` item
+  explains the *why*, not just the *what*. A spec table earns its place by being
+  the densest thing on the page.
+- Write the **statement** — the peak section's one display line — as the
+  sharpest sentence on the page. It is the only place below the hero permitted
+  to shout, so it must deserve it.
+
+#### Beats
+
+- One sentence, **8–18 words**. Longer cannot be read inside a 40-frame window
+  at scroll speed.
+- **Name-check each one**: state which concrete noun in it is visible in that
+  frame range and not the previous one. If you cannot, cut the beat.
+- **Read them with the engine off.** State the hero copy top to bottom with
+  nothing hidden and confirm it is coherent prose. If it reads as nonsense the
+  beats have connectives and the reverse rule was broken.
+- **No beat may be the only place a fact appears.** Every claim also lives in a
+  band below, so a visitor whose frames never load loses nothing — and that is
+  what frees beats to be short and evocative instead of compressed spec text.
 
 ### Phase 6 — Hero still. **[GATE]**
 
@@ -193,14 +342,32 @@ python motionkit.py frames --project <p> --name hero
 python motionkit.py serve --project <p>
 ```
 
+0. **Run `python motionkit.py check --project <p>` and fix what it reports.**
+   It is free, it exits non-zero, and every check in it corresponds to something
+   this tool has actually shipped wrong.
 1. Slice, then **paste the printed `SCRUB_SECTIONS` snippet** into
    `site/index.html`. Use the counts it prints — they are files measured on
-   disk, and ffmpeg's fps filter rounds.
+   disk, and ffmpeg's fps filter rounds. A count one too high makes the engine
+   fetch a frame that does not exist, and `img.onerror` resolves by design, so
+   it fails **silently**.
 2. Write the copy from Phase 5 into `site/index.html`.
 3. Write the direction from Phase 3 into **`site/brand.css`** — palette, type,
    texture. That is the only design file you edit. `site/styles.css` is
    structural scaffolding and stays untouched; it is layered so `brand.css`
    overrides it without `!important`.
+   - Its one structural obligation is the **eight role declarations**:
+     `--ground-1/2`, `--ink-1/2`, `--rule-1/2`, `--muted-1/2`, plus `--field-*`.
+     Without them every band falls back to one ground and you have rebuilt the
+     bland page.
+   - Set the overlay colour to suit **the plate, not the page**: a light clip
+     wants dark hero copy even on a dark page. Getting it backwards is an
+     invisible hero, and it nearly shipped once.
+   - Use `--scrim` to guarantee overlay contrast rather than hoping, since the
+     frame behind the copy changes 179 times.
+3b. **Pluck the supporting imagery** — free, from frames already paid for:
+   `python motionkit.py pluck --project <p> --name hero --frames 43,71`.
+   Never point an `<img>` at `frames/` directly: it is gitignored and cleared on
+   every re-slice.
 4. Delete the `.stage__cutout` element if the direction has no text-behind. It
    is a clean delete — no CSS or JS change is needed.
 5. **Seam check** on a looping clip: compare the first and last frames. A
