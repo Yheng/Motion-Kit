@@ -567,6 +567,155 @@ def clamp_duration(config: dict, seconds: float) -> "tuple[float, bool]":
     return seconds, changed
 
 
+# ── ffmpeg operations ────────────────────────────────────────────────────────
+
+#: Placeholder clips match the canonical 6s render, so the fps arithmetic on the
+#: dry-run path is identical to the real one.
+PLACEHOLDER_SECONDS = 6.0
+FRAME_GLOB = "frame_*"
+
+
+def run_ffmpeg(ffmpeg: Path, args: "list[str]", label: str) -> None:
+    """Run ffmpeg with an argv list. Never shell=True, never a quoted filter string."""
+    proc = subprocess.run(
+        [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", *args],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if proc.returncode != 0:
+        tail = proc.stderr.decode("utf-8", "replace").strip().splitlines()[-20:]
+        die(f"ffmpeg failed while {label}:\n  " + "\n  ".join(tail) if tail
+            else f"ffmpeg failed while {label} (exit {proc.returncode})")
+
+
+def probe_duration(ffprobe: Path, clip: Path) -> float:
+    proc = subprocess.run(
+        [str(ffprobe), "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(clip)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60,
+    )
+    raw = proc.stdout.decode("utf-8", "replace").strip().splitlines()
+    try:
+        duration = float(raw[0].strip())
+    except (IndexError, ValueError):
+        detail = proc.stderr.decode("utf-8", "replace").strip()
+        die(f"could not read a duration from {clip.name}"
+            + (f":\n  {detail}" if detail else ""))
+    if duration <= 0:
+        die(f"{clip.name} reports a duration of {duration}s")
+    return duration
+
+
+def encoder_args(fmt: str, quality: int) -> "list[str]":
+    """Encoder flags per output format. `quality` is 0-100, higher is better."""
+    if fmt == "webp":
+        # -compression_level is a generic codec option rather than a libwebp
+        # private one, so it does not appear in -h encoder=libwebp but is accepted.
+        return ["-c:v", "libwebp", "-quality", str(quality), "-compression_level", "6"]
+    if fmt == "jpg":
+        # mjpeg -q:v runs 2..31 with *lower* meaning better — the inverse of ours.
+        scaled = min(31, max(2, round(2 + (100 - quality) * 0.29)))
+        return ["-c:v", "mjpeg", "-q:v", str(scaled)]
+    if fmt == "avif":
+        crf = min(50, max(18, round(63 - 0.4 * quality)))
+        # -still-picture is what makes each file a still (ftypavif) rather than a
+        # one-frame sequence; without -f image2 alongside it, ffmpeg selects the
+        # avif *sequence* muxer, ignores the %04d pattern entirely, and writes a
+        # single animated file literally named frame_%04d.avif.
+        return ["-c:v", "libaom-av1", "-crf", str(crf), "-cpu-used", "6",
+                "-still-picture", "1"]
+    die(f"unknown format '{fmt}' — use webp, jpg or avif")
+
+
+def clear_frames(directory: Path) -> int:
+    """Delete frames from a previous slice.
+
+    Re-slicing 180 frames down to 120 otherwise leaves frame_0121..0180 behind,
+    and a later re-slice at 200 would interleave two different takes.
+    """
+    if not directory.exists():
+        return 0
+    removed = 0
+    for stale in directory.glob(FRAME_GLOB):
+        if stale.is_file():
+            stale.unlink()
+            removed += 1
+    return removed
+
+
+def slice_frames(ffmpeg: Path, input_args: "list[str]", dest: Path, *,
+                 count: int, width: int, fmt: str, quality: int,
+                 duration: float, trim_end: float) -> int:
+    """Slice one variant. Returns the number of files actually written.
+
+    ffmpeg's fps filter rounds, so the written count routinely differs from
+    `count` by one — the caller must use the returned number, never the request.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    clear_frames(dest)
+
+    usable = duration - trim_end
+    if usable <= 0:
+        die(f"--trim-end {trim_end}s leaves nothing of a {duration:.2f}s clip")
+    fps = count / usable
+
+    args = list(input_args)
+    args += ["-vf", f"fps={fps:.6f},scale={width}:-2:flags=lanczos", "-an"]
+    args += encoder_args(fmt, quality)
+    # Pin the image2 muxer so numbered output is guaranteed for every format
+    # rather than inferred from the extension.
+    args += ["-f", "image2"]
+    if trim_end > 0:
+        # Without this the fps filter resamples across the WHOLE input and the
+        # trimmed tail is still emitted, just sampled faster: asking for 30
+        # frames from a 3s clip with trim_end=1 yields 45, tail included.
+        args += ["-t", f"{usable:.6f}"]
+    args += [str(dest / f"frame_%04d.{fmt}")]
+
+    run_ffmpeg(ffmpeg, args, f"slicing {dest.parent.name}/{dest.name}")
+    return len(list(dest.glob(f"{FRAME_GLOB}.{fmt}")))
+
+
+def write_poster(ffmpeg: Path, first_frame: Path, poster_dir: Path,
+                 name: str, width: int) -> "list[Path]":
+    """Write the LCP poster from frame 1 of the sequence.
+
+    Deriving it from the same frame the canvas paints first is what makes the
+    poster-to-canvas fade invisible; any other source guarantees a visible pop.
+    """
+    poster_dir.mkdir(parents=True, exist_ok=True)
+    scale = f"scale={width}:-2:flags=lanczos"
+    jpg = poster_dir / f"{name}.jpg"
+    webp = poster_dir / f"{name}.webp"
+    run_ffmpeg(ffmpeg, ["-i", str(first_frame), "-vf", scale, "-q:v", "3", str(jpg)],
+               "writing the poster jpg")
+    run_ffmpeg(ffmpeg, ["-i", str(first_frame), "-vf", scale,
+                        "-c:v", "libwebp", "-quality", "82", str(webp)],
+               "writing the poster webp")
+    return [jpg, webp]
+
+
+def scrub_sections_snippet(sections: dict) -> str:
+    """Paste-ready config, built from counts measured on disk."""
+    entries = []
+    for name, section in sections.items():
+        variants = section.get("variants", {})
+        counts = ", ".join(f'{v}: {variants[v]["count"]}'
+                           for v in ("desktop", "mobile") if v in variants)
+        fmt = section.get("format", "webp")
+        entries.append(
+            f'  {{\n'
+            f'    section: "#{name}",\n'
+            f'    name: "{name}",\n'
+            f'    frameCount: {{ {counts} }},\n'
+            f'    format: "{fmt}",\n'
+            f'    bg: "#07070a",\n'
+            f'    framePath: (n, v) =>\n'
+            f'      `frames/{name}/${{v}}/frame_${{String(n).padStart(4, "0")}}.{fmt}`,\n'
+            f'  }}'
+        )
+    return "window.SCRUB_SECTIONS = [\n" + ",\n".join(entries) + ",\n];"
+
+
 # ── commands ─────────────────────────────────────────────────────────────────
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -742,6 +891,121 @@ def cmd_cost(args: argparse.Namespace) -> int:
     return 0
 
 
+CLIP_EXTENSIONS = (".mp4", ".mov", ".webm", ".mkv", ".m4v")
+
+
+def resolve_clip(directory: Path, name: str, given: "str | None") -> Path:
+    """Locate the source clip. Defaults to build/<name>.<known video extension>."""
+    if given:
+        candidate = Path(given)
+        for option in (candidate, directory / candidate, ROOT / candidate):
+            if option.is_file():
+                return option
+        die(f"no clip at {given}")
+
+    build = directory / "build"
+    matches = [build / f"{name}{ext}" for ext in CLIP_EXTENSIONS
+               if (build / f"{name}{ext}").is_file()]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        present = sorted(p.name for p in build.glob("*") if p.is_file()) if build.exists() else []
+        die(f"no clip for section '{name}' — expected {build / (name + '.mp4')}\n"
+            f"  build/ contains: {', '.join(present) if present else 'nothing yet'}\n"
+            f"  Pass --clip, or --placeholder to slice free frames with no clip at all.")
+    die(f"several clips match '{name}': {', '.join(m.name for m in matches)} — pass --clip")
+
+
+def cmd_frames(args: argparse.Namespace) -> int:
+    directory = require_project(args.project)
+    defaults = load_project_config(args.project).get("defaults") or DEFAULTS
+
+    count = args.count if args.count is not None else defaults.get("count", 180)
+    width = args.width if args.width is not None else defaults.get("width", 1600)
+    mobile_width = (args.mobile_width if args.mobile_width is not None
+                    else defaults.get("mobile_width", 900))
+    fmt = args.format or defaults.get("format", "webp")
+    quality = args.quality if args.quality is not None else defaults.get("quality", 80)
+
+    ffmpeg, ffprobe = ensure_ffmpeg()
+    site = directory / "site"
+
+    if args.placeholder:
+        duration = PLACEHOLDER_SECONDS
+        height = round(width * 9 / 16)
+        height += height % 2
+        input_args = ["-f", "lavfi",
+                      "-i", f"testsrc2=size={width}x{height}:rate=30:duration={duration:g}"]
+        source_label = f"testsrc2 {width}x{height} {duration:g}s"
+        clip_record = None
+        say(f"{mark('dot')} placeholder — no clip, no API call, $0")
+    else:
+        clip = resolve_clip(directory, args.name, args.clip)
+        duration = probe_duration(ffprobe, clip)
+        input_args = ["-i", str(clip)]
+        source_label = f"{clip.name} ({duration:.2f}s)"
+        clip_record = rel_posix(clip, directory)
+
+    say(f"  source    {source_label}")
+    say(f"  format    {fmt} q{quality}")
+    if args.trim_end:
+        say(f"  trim-end  {args.trim_end:g}s (sampling the first {duration - args.trim_end:.2f}s)")
+
+    plan = [("desktop", width, count)]
+    if not args.desktop_only:
+        # The spec's floor of 40 assumes the default 180. Below a count of 80 it
+        # would hand the weaker device *more* frames than the desktop variant,
+        # which is never intended, so it is capped at the desktop count.
+        plan.append(("mobile", mobile_width, min(max(count // 2, 40), count)))
+
+    variants: dict = {}
+    for variant, variant_width, variant_count in plan:
+        dest = site / "frames" / args.name / variant
+        written = slice_frames(
+            ffmpeg, input_args, dest,
+            count=variant_count, width=variant_width, fmt=fmt, quality=quality,
+            duration=duration, trim_end=args.trim_end,
+        )
+        if not written:
+            die(f"no frames were written to {dest}")
+        size_mb = sum(p.stat().st_size for p in dest.glob(f"{FRAME_GLOB}.{fmt}")) / 1e6
+        note = "" if written == variant_count else f"  (asked for {variant_count})"
+        say(f"  {mark('ok')} {variant:<8} {written} frames at {variant_width}px, "
+            f"{size_mb:.1f} MB{note}")
+        variants[variant] = {"count": written, "width": variant_width,
+                             "bytes": int(size_mb * 1e6)}
+
+    first_frame = site / "frames" / args.name / "desktop" / f"frame_0001.{fmt}"
+    posters: "list[Path]" = []
+    if first_frame.exists():
+        posters = write_poster(ffmpeg, first_frame, site / "poster", args.name, width)
+        say(f"  {mark('ok')} poster   {', '.join(p.name for p in posters)} (from frame 1)")
+    else:
+        warn(f"expected {first_frame.name} for the poster but it is missing")
+
+    with mutate_state(args.project) as state:
+        state.setdefault("sections", {})[args.name] = {
+            "clip": clip_record,
+            "placeholder": bool(args.placeholder),
+            "format": fmt,
+            "quality": quality,
+            "trim_end": args.trim_end,
+            "source_duration": round(duration, 3),
+            "variants": variants,
+            "poster": rel_posix(posters[0], site) if posters else None,
+            "sliced_at": now_iso(),
+        }
+        sections = dict(state["sections"])
+
+    rule("paste into site/index.html")
+    say(scrub_sections_snippet(sections))
+    say()
+    say(f"{mark('dot')} counts above are files on disk, not the requested numbers —")
+    say("  ffmpeg's fps filter rounds, and a wrong count makes the engine fetch")
+    say("  frames that do not exist.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import http.server
     import socketserver
@@ -818,6 +1082,25 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--force", action="store_true",
                       help="refresh templates in an existing project, keeping build/ and spend")
     init.set_defaults(func=cmd_init)
+
+    frames = sub.add_parser("frames", help="slice a clip into numbered frames")
+    frames.add_argument("--project", required=True)
+    frames.add_argument("--name", required=True, help="section name, e.g. hero")
+    frames.add_argument("--clip", help="source video (default: build/<name>.mp4)")
+    frames.add_argument("--count", type=int, help="desktop frame count (default 180)")
+    frames.add_argument("--width", type=int, help="desktop width in px (default 1600)")
+    frames.add_argument("--mobile-width", type=int, dest="mobile_width",
+                        help="mobile width in px (default 900)")
+    frames.add_argument("--format", choices=["webp", "jpg", "avif"],
+                        help="frame format (default webp; avif is slow, opt in)")
+    frames.add_argument("--quality", type=int, help="0-100, higher is better (default 80)")
+    frames.add_argument("--trim-end", type=float, default=0.0, dest="trim_end",
+                        help="drop this many seconds off the end, for loop seams")
+    frames.add_argument("--desktop-only", action="store_true", dest="desktop_only",
+                        help="skip the mobile variant")
+    frames.add_argument("--placeholder", action="store_true",
+                        help="generate free frames with no clip and no API call")
+    frames.set_defaults(func=cmd_frames)
 
     cost = sub.add_parser("cost", help="itemised spend log and total")
     cost.add_argument("--project", required=True)
