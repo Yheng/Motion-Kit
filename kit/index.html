@@ -13,16 +13,27 @@
      exactly, or the browser downloads the poster twice. -->
 <link rel="preload" as="image" href="poster/hero.webp" type="image/webp" fetchpriority="high">
 
+<!-- FONT SLOT — a CDN is permitted. Uncomment and set the family, then declare
+     the roles in brand.css. Preload only the ONE display face: a huge H1
+     swapping late is the likeliest source of layout shift here, and CLS < 0.1
+     is a target. For EU client work note that Google Fonts discloses visitor
+     IPs; `python motionkit.py fonts --self-host` vendors the pairing instead.
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=FAMILY&display=swap">
+-->
+
 <!-- Order matters: scaffold first, brand second. brand.css is unlayered and so
-     wins over styles.css without !important. Every asset is same-origin, so
-     there is deliberately no preconnect. -->
+     wins over styles.css without !important. -->
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="brand.css">
 
 <script src="scrub.js" defer></script>
 
 <!-- ── PASTE FROM: python motionkit.py frames --project <p> --name <section> ──
-     The counts are files measured on disk, not the numbers requested. -->
+     The counts are files measured on disk, not the numbers requested — ffmpeg's
+     fps filter rounds, and a count that is one too high makes the engine fetch
+     a frame that does not exist, which fails SILENTLY. -->
 <script>
 window.SCRUB_SECTIONS = [
   {
@@ -30,7 +41,6 @@ window.SCRUB_SECTIONS = [
     name: "hero",
     frameCount: { desktop: 180, mobile: 90 },
     format: "webp",
-    bg: "#07070a",
     framePath: (n, v) =>
       `frames/hero/${v}/frame_${String(n).padStart(4, "0")}.webp`,
   },
@@ -64,8 +74,7 @@ window.SCRUB_SECTIONS = [
 </script>
 
 <!-- ANALYTICS SLOT — inactive by design. Nothing loads until you paste a
-     snippet here. Whatever you paste is a third-party request on the critical
-     path, so keep it last in <head> and prefer defer or async.
+     snippet here. Keep it last in <head> and prefer defer or async.
 <script defer src="https://example.com/analytics.js"></script>
 -->
 </head>
@@ -77,9 +86,9 @@ window.SCRUB_SECTIONS = [
   <a class="nav__logo" href="/" aria-label="{{Brand}} home">{{Brand}}</a>
   <nav class="nav__links" aria-label="Primary">
     <ul>
-      <li><a href="#how">{{Nav 1}}</a></li>
-      <li><a href="#proof">{{Nav 2}}</a></li>
-      <li><a href="#faq">{{Nav 3}}</a></li>
+      <li><a href="#systems">{{Nav 1}}</a></li>
+      <li><a href="#record">{{Nav 2}}</a></li>
+      <li><a href="#specification">{{Nav 3}}</a></li>
     </ul>
   </nav>
   <a class="btn nav__cta" href="#contact">{{CTA 1 of 4}}</a>
@@ -87,7 +96,9 @@ window.SCRUB_SECTIONS = [
 
 <main id="main">
 
-  <!-- The scroll track. Its height is how far the sequence scrubs over. -->
+  <!-- The scroll track. Its height is how far the sequence scrubs over, and it
+       must stay under 40% of total document scroll or the page below reads as
+       an afterthought. Set --track-h from the direction's hero share. -->
   <section id="hero" class="scrub">
     <div class="stage">
 
@@ -104,28 +115,61 @@ window.SCRUB_SECTIONS = [
       <canvas class="stage__canvas" aria-hidden="true"></canvas>
 
       <!-- z 20 — real, selectable, translatable, indexable copy.
-           data-in  = "start end" fades a line IN across that scroll range.
-           data-out = "start end" fades it OUT. Both are fractions of this
-           section's scroll progress, 0 to 1. Omit data-in and the line is there
-           from the start; omit data-out and it never leaves.
+           ────────────────────────────────────────────────────────────────────
+           THE OPENING BLOCK uses data-out: it is the hero HANDING OVER as the
+           sequence takes command. Never give hero copy a data-in starting at 0
+           — the page loads at exactly progress 0 and the headline would be
+           invisible on arrival.
 
-           NEVER give hero copy a data-in beginning at 0. It would be invisible
-           on arrival, which is the first thing a visitor sees. The first screen
-           is complete, and the copy fades out as the sequence takes over. -->
-      <div class="stage__overlay">
-        <p class="eyebrow" data-out=".30 .42">{{Eyebrow}}</p>
-        <h1 class="display" data-out=".40 .54">{{H1 — the only h1 on the page}}</h1>
-        <p class="lede" data-out=".34 .46">{{One or two sentences.}}</p>
-        <p><a class="btn" href="#contact" data-out=".46 .60">{{CTA 2 of 4}}</a></p>
-        <p class="scroll-hint" data-out="0 .06" aria-hidden="true">Scroll</p>
+           BEATS use data-beat="first last", in 1-based frame numbers of the
+           DESKTOP sequence — the same numbers the contact sheet prints:
+
+               python motionkit.py contact --project <p> --name hero
+
+           A beat is a stretch where the picture says one thing, and its
+           sentence must name something visible in those frames and not in the
+           previous ones. Three to five beats; 8-18 words each.
+
+           Two rules that are easy to get wrong:
+             - Scrubbing runs BACKWARDS, so beats are independent statements,
+               never a sequence with connectives like "first" or "and finally".
+             - Re-slicing at a different --count is safe (the ratio is
+               preserved), but RE-RENDERING the clip invalidates every beat.
+               Re-run contact and re-check them: the numbers still point at
+               frames, but the frames now show something else.
+
+           With the engine off, every beat is visible at once and in document
+           order, so they must read as coherent prose. Beats are <p>, never
+           headings — the single h1 and the heading outline stay untouched. And
+           no beat may be the only place a fact appears; each claim also lives
+           in a band below, which is what frees beats to be short. -->
+      <div class="stage__overlay stage__overlay--stack">
+
+        <div class="beat beat--open" data-out=".40 .54">
+          <p class="eyebrow">{{Eyebrow}}</p>
+          <h1 class="display">{{H1 — the only h1 on the page}}</h1>
+          <p class="lede">{{One or two sentences.}}</p>
+          <p><a class="btn" href="#contact">{{CTA 2 of 4}}</a></p>
+          <p class="scroll-hint" aria-hidden="true">Scroll</p>
+        </div>
+
+        <div class="beat" data-beat="31 70"><p>{{Beat 2 — name what the turn reveals.}}</p></div>
+        <div class="beat" data-beat="71 120"><p>{{Beat 3 — the mechanism now in view.}}</p></div>
+        <div class="beat" data-beat="121 179"><p>{{Beat 4 — the consequence.}}</p></div>
+
       </div>
 
-      <!-- z 30 — CUTOUT. The subject, above the headline, so type passes behind
-           it while the full frame scrubs underneath. Requires a cutout PNG with
-           alpha (transparency rules out JPEG).
-           DELETE this whole element when the direction has no text-behind
-           subject — nothing in the CSS or JS needs changing, and the z-band
-           simply has a hole at 30. -->
+      <!-- z 30 — CUTOUT. The subject above the headline, so type passes behind
+           it while the full frame scrubs underneath. Requires a PNG with alpha.
+
+           ONLY valid when the subject HOLDS STILL. v1 is a static cutout over a
+           moving plate, so a turntable or orbit — anything that re-poses the
+           subject — makes this diverge within a few frames and the page shows
+           two subjects. Suits light sweeps, drifting particles, a moving
+           environment behind a static subject.
+
+           DELETE this element when the direction has no text-behind. Nothing in
+           the CSS or JS needs changing; the z-band simply has a hole at 30. -->
       <img class="stage__cutout" src="cutout/hero_cutout.png"
            width="1600" height="900" alt="" aria-hidden="true">
       <!-- /CUTOUT -->
@@ -133,58 +177,90 @@ window.SCRUB_SECTIONS = [
     </div>
   </section>
 
-  <section id="value" class="band">
+  <!-- ── THE PAGE BELOW ──────────────────────────────────────────────────────
+       A section takes ONE ground and ONE content shape. Grounds:
+       (default) · .band--invert · .band--field. Width: .band--bleed. Rhythm:
+       .band--tight · .band--tall. Shapes: .grid-3 .steps .split .stat-row
+       .statement .figure .slab .faq .logos
+
+       Six budgets keep it a page instead of a sampler, and `motionkit.py check`
+       enforces them:
+         1. one ground per band
+         2. the inversion count comes from the direction's ground rhythm
+         3. one .band--bleed per page
+         4. one .statement per page, in the section named as the peak
+         5. shapes never adjacent, never more than twice
+         6. at most TWO loud moves per band — invert/field, bleed, statement,
+            stat-row — except the peak band, which gets three. That is what
+            makes it the peak. -->
+
+  <section id="what" class="band">
     <div class="wrap">
       <h2>{{Section heading}}</h2>
       <ul class="grid-3">
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
+        <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+        <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+        <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
       </ul>
     </div>
   </section>
 
-  <section id="how" class="band">
+  <!-- Supporting imagery is free: `pluck` copies frames you already paid for
+       out of the sequence. At least one supporting image should come from it. -->
+  <section id="systems" class="band band--bleed">
     <div class="wrap">
-      <h2>{{How it works}}</h2>
-      <ol class="steps">
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-      </ol>
+      <div class="split">
+        <div class="split__media">
+          <figure class="figure">
+            <img src="still/hero_0045.webp" width="1600" height="900"
+                 alt="{{Descriptive alt}}" loading="lazy" decoding="async">
+            <figcaption>{{Caption}}</figcaption>
+          </figure>
+        </div>
+        <div class="split__body flow">
+          <h2>{{Heading}}</h2>
+          <ol class="steps flow">
+            <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+            <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+          </ol>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="proof" class="band">
-    <div class="wrap">
-      <h2>{{Proof}}</h2>
-      <figure class="quote">
-        <blockquote><p>{{Testimonial — mark invented claims in double braces}}</p></blockquote>
-        <figcaption>{{Name, role}}</figcaption>
-      </figure>
-      <ul class="logos"><li>{{}}</li><li>{{}}</li><li>{{}}</li></ul>
+  <!-- THE PEAK. The one section carrying the page's biggest type below the
+       hero, and the only band allowed three loud moves. -->
+  <section id="record" class="band band--invert band--tall">
+    <div class="wrap flow">
+      <h2 class="visually-hidden">{{Accessible heading for the outline}}</h2>
+      <p class="statement">{{The page's one statement.}}<cite>{{Attribution}}</cite></p>
+      <ul class="stat-row">
+        <li class="stat"><span class="stat__figure">{{00}}</span><span class="stat__label">{{}}</span></li>
+        <li class="stat"><span class="stat__figure">{{00}}</span><span class="stat__label">{{}}</span></li>
+        <li class="stat"><span class="stat__figure">{{00}}</span><span class="stat__label">{{}}</span></li>
+      </ul>
     </div>
   </section>
 
-  <section id="cta-mid" class="band">
-    <div class="wrap">
+  <section id="cta-mid" class="band band--tight">
+    <div class="wrap flow">
       <h2>{{Mid-page CTA heading}}</h2>
       <p><a class="btn" href="#contact">{{CTA 3 of 4}}</a></p>
     </div>
   </section>
 
-  <section id="faq" class="band">
+  <section id="specification" class="band">
     <div class="wrap">
-      <h2>{{FAQ}}</h2>
+      <h2>{{Specification}}</h2>
       <dl class="faq">
-        <dt>{{Question}}</dt><dd>{{Answer}}</dd>
-        <dt>{{Question}}</dt><dd>{{Answer}}</dd>
+        <dt>{{Label}}</dt><dd>{{Value}}</dd>
+        <dt>{{Label}}</dt><dd>{{Value}}</dd>
       </dl>
     </div>
   </section>
 
-  <section id="contact" class="band">
-    <div class="wrap">
+  <section id="contact" class="band band--field">
+    <div class="wrap flow">
       <h2>{{Closing CTA}}</h2>
       <p class="measure">{{}}</p>
 
@@ -210,10 +286,10 @@ window.SCRUB_SECTIONS = [
 </main>
 
 <footer class="footer">
-  <div class="wrap">
+  <div class="wrap flow">
     <a class="footer__logo" href="/">{{Brand}}</a>
     <nav aria-label="Footer">
-      <ul><li><a href="#">{{}}</a></li><li><a href="#">{{}}</a></li></ul>
+      <ul><li><a href="#specification">{{}}</a></li><li><a href="#contact">{{}}</a></li></ul>
     </nav>
     <p class="footer__legal">&copy; {{year}} {{Brand}}. {{}}</p>
   </div>

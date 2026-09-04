@@ -263,6 +263,11 @@
     pointer-events: none;                          /* never eats clicks */
   }
   .stage__overlay > * + * { margin-top: var(--gap); }
+
+  /* A beat is a block, so its own children need the rhythm that the overlay's
+     direct children used to get. When the engine stacks beats they overlap and
+     the margin is inert; when it is off they flow as consecutive paragraphs. */
+  .beat > * + * { margin-top: var(--gap); }
   .stage__overlay a, .stage__overlay button { pointer-events: auto; }
 
   .stage__cutout { z-index: var(--z-cutout); pointer-events: none; }
