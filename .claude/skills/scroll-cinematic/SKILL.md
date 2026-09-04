@@ -193,9 +193,18 @@ Six budgets, enforced by `motionkit.py check`, not merely advised:
    stat-row. The peak band is the sole exception at three. That is what makes it
    the peak.
 
-#### The beat map
+#### The beat map — planned here, numbered in Phase 8
 
-**Look at the frames before writing a word about them.**
+**Ordering that is easy to get wrong:** `contact` needs sliced frames, and there
+are none until Phase 7 has produced a clip. So this phase decides *what the
+motion must reveal* — which is what the motion prompt is then written to deliver
+— and the actual frame numbers are assigned in Phase 8 once the sequence exists.
+
+Do not guess frame numbers now. A beat map written before the clip exists is
+fiction, and the whole point of beats is that they name what is genuinely on
+screen.
+
+In Phase 8, with frames on disk:
 
 ```
 python motionkit.py contact --project <p> --name hero
@@ -219,8 +228,9 @@ still.
 4. **The reverse rule.** Scrubbing runs backwards. Beats are independent
    statements, never a sequence with connectives like "first" or "and finally".
    This is what separates a beat map from a video script.
-5. Record it with `phase --approve architecture --note "..."` so a resume keeps
-   it.
+5. Record the *intent* now with `phase --approve architecture --note "..."` —
+   what each beat should say and roughly where in the move it belongs — and fill
+   in the frame numbers in Phase 8.
 
 Then ask two numbered-choice questions — never "what should the copy say":
 

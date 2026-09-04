@@ -1,7 +1,24 @@
 {
-  "phase": "intake",
-  "approvals": {},
+  "phase": "architecture",
+  "approvals": {
+    "directions": {
+      "approved": true,
+      "at": "2026-09-04T16:26:49Z",
+      "choice": "1",
+      "note": "Sanctuary — warm ivory studio, massed white orchids and pale roses, Cormorant Garamond / Inter. Chosen over the contrarian Plain Air for brand coherence with existing clinic imagery. Light matches her photograph, which is the compositing constraint."
+    }
+  },
   "spend": [],
   "assets": {},
-  "jobs": {}
+  "jobs": {},
+  "phase_history": [
+    {
+      "phase": "positioning",
+      "at": "2026-09-04T16:19:37Z"
+    },
+    {
+      "phase": "architecture",
+      "at": "2026-09-04T16:26:49Z"
+    }
+  ]
 }
