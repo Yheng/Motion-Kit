@@ -1451,7 +1451,8 @@ def cmd_check(args: argparse.Namespace) -> int:
         if (site / name).exists():
             css += (site / name).read_text(encoding="utf-8", errors="replace")
 
-    body = html.split("<body", 1)[-1]
+    live = re.sub(r"<!--.*?-->", "", html, flags=re.S)
+    body = live.split("<body", 1)[-1]
     results: "list[tuple[str, str, str]]" = []
 
     def record(level: str, label: str, detail: str = "") -> None:
@@ -1479,8 +1480,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     # ── unresolved claims ────────────────────────────────────────────────────
     # Whole document, not just the body: a {{claim}} in <title> shows in the
-    # browser tab. Commented-out slots are inert, so they are stripped first.
-    live = re.sub(r"<!--.*?-->", "", html, flags=re.S)
+    # browser tab.
     claims = re.findall(r"\{\{[^}]*\}\}", live)
     if claims:
         record("fail", "unresolved {{claims}}",
@@ -1545,9 +1545,13 @@ def cmd_check(args: argparse.Namespace) -> int:
            "none" if not bad_in else f"{len(bad_in)} line(s) invisible on arrival")
 
     # ── beats ────────────────────────────────────────────────────────────────
-    beats = [tuple(int(v) for v in b.split()[:2])
-             for b in re.findall(r'data-beat="([^"]+)"', stage)
-             if len(b.split()) >= 2]
+    beats = []
+    for raw in re.findall(r'data-beat="([^"]+)"', stage):
+        parts = raw.split()[:2]
+        if len(parts) == 2 and all(v.lstrip("-").isdigit() for v in parts):
+            beats.append((int(parts[0]), int(parts[1])))
+        else:
+            record("warn", "data-beat", f'"{raw}" is not two frame numbers')
     if beats:
         beats.sort()
         gaps = [f"{a[1]}-{b[0]}" for a, b in zip(beats, beats[1:]) if b[0] - a[1] > 12]
