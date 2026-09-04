@@ -1668,6 +1668,41 @@ def field_spec(entry) -> "tuple[str | None, str | None]":
     return entry.get("name"), entry.get("cast")
 
 
+def find_local_asset(directory: Path, given: str) -> Path:
+    """Resolve a user-supplied path against cwd, the project, then build/."""
+    candidate = Path(given)
+    for option in (candidate, directory / candidate, directory / "build" / candidate.name):
+        if option.is_file():
+            return option
+    die(f"no file at {given}", code=2)
+
+
+def reference_uris(directory: Path, given: str, limit: int) -> "list[str]":
+    """Inline reference images as data URIs, newest limits from the provider.
+
+    fal's docs show http URLs for the edit endpoint and do not document data
+    URIs. They are proven to work on seedance image-to-video, which is how the
+    reference build was made, so inlining is tried first — a rejected request
+    costs nothing and tells us to add an upload step instead.
+    """
+    paths = [find_local_asset(directory, p)
+             for p in str(given).split(",") if p.strip()]
+    if not paths:
+        die("--reference needs at least one file", code=2)
+    if limit and len(paths) > limit:
+        die(f"{len(paths)} references given; this model accepts {limit}", code=2)
+
+    uris = [data_uri(p) for p in paths]
+    total = sum(len(u) for u in uris)
+    say(f"  reference {len(paths)} image(s), {total / 1e6:.1f} MB inlined")
+    for index, path in enumerate(paths, start=1):
+        say(f"    [Image{index}]  {path.name}")
+    if total > DATA_URI_MAX_BYTES:
+        warn(f"the request body is {total / 1e6:.1f} MB; large bodies are often "
+             f"rejected. Drop a reference or shrink them.")
+    return uris
+
+
 def build_payload(config: dict, op: str, model_id: str, params: dict) -> dict:
     """Map the CLI's own vocabulary onto this model's wire field names."""
     fields = op_fields(config, op, model_id)
@@ -1866,39 +1901,61 @@ def run_generation(project: str, op: str, *, out_name: str, params: dict,
 
 
 def cmd_image(args: argparse.Namespace) -> int:
+    directory = require_project(args.project)
+    params = {"prompt": args.prompt, "aspect": args.aspect, "resolution": args.resolution}
+    model = args.model
+
+    if args.reference:
+        config = load_provider(load_project_config(args.project).get("provider", "fal"))
+        limit = (config.get("limits") or {}).get("max_reference_images", 0)
+        params["reference"] = reference_uris(directory, args.reference, limit)
+        # The base text-to-image endpoint has no image_urls; the edit variant
+        # does. Switch unless the caller pinned a model themselves.
+        model = model or "image_reference"
+
     run_generation(
-        args.project, "image", out_name=args.out, cli_model=args.model,
-        note=args.note or "", overwrite=args.overwrite,
-        params={"prompt": args.prompt, "aspect": args.aspect, "resolution": args.resolution},
+        args.project, "image", out_name=args.out, cli_model=model,
+        note=args.note or "", overwrite=args.overwrite, params=params,
     )
     return 0
 
 
 def cmd_video(args: argparse.Namespace) -> int:
     directory = require_project(args.project)
-    still = Path(args.image)
-    for option in (still, directory / still, directory / "build" / still.name):
-        if option.is_file():
-            still = option
-            break
-    else:
-        die(f"no still at {args.image}")
+    if not (args.image or args.reference):
+        die("give --image (a start frame) or --reference (images to compose from)", code=2)
 
     params = {
         "prompt": args.prompt,
-        "start_image": data_uri(still),
         "duration": args.duration,
         "resolution": args.resolution,
         "aspect": args.aspect,
     }
-    if args.loop:
-        # The sequence returns to its first frame, so the scrub has no seam.
-        params["end_image"] = params["start_image"]
+    model, derived = args.model, None
+
+    if args.reference:
+        config = load_provider(load_project_config(args.project).get("provider", "fal"))
+        limit = (config.get("limits") or {}).get("max_reference_images_video", 0)
+        params["reference"] = reference_uris(directory, args.reference, limit)
+        model = model or "video_reference"
+        say("  Address them in the prompt as [Image1], [Image2] … so the model "
+            "knows what each is for.")
+        if args.image or args.loop:
+            warn("the reference endpoint composes from image_urls and has no single "
+                 "start frame, so --image and --loop do not apply and are dropped")
+
+    if args.image and not args.reference:
+        still = find_local_asset(directory, args.image)
+        params["start_image"] = data_uri(still)
+        derived = still.stem
+        if args.loop:
+            # The sequence returns to its first frame, so the scrub has no seam.
+            params["end_image"] = params["start_image"]
 
     run_generation(
-        args.project, "video", out_name=args.out, cli_model=args.model,
-        note=args.note or ("looping" if args.loop else ""),
-        derived_from=still.stem, overwrite=args.overwrite, params=params,
+        args.project, "video", out_name=args.out, cli_model=model,
+        note=args.note or ("looping" if args.loop and not args.reference else ""),
+        derived_from=derived, overwrite=args.overwrite, params=params,
     )
     return 0
 
@@ -2141,12 +2198,17 @@ def build_parser() -> argparse.ArgumentParser:
     image.add_argument("--out", required=True, help="filename inside build/")
     image.add_argument("--aspect", default="16:9")
     image.add_argument("--resolution")
+    image.add_argument("--reference",
+                       help="comma-separated reference images; switches to the edit endpoint")
     image.set_defaults(func=cmd_image)
 
     video = sub.add_parser("video", help="animate a still into build/")
     add_paid(video)
     video.add_argument("--prompt", required=True)
-    video.add_argument("--image", required=True, help="the approved still")
+    video.add_argument("--image", help="the approved still, used as the first frame")
+    video.add_argument("--reference",
+                       help="comma-separated reference images; address them in the "
+                            "prompt as [Image1], [Image2]")
     video.add_argument("--out", required=True, help="filename inside build/")
     video.add_argument("--duration", type=float, default=6.0)
     video.add_argument("--resolution", default="720p")

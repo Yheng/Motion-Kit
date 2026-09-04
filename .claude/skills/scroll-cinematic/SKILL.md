@@ -293,6 +293,25 @@ materials, lighting, background, camera angle — and **no motion words at all.*
 Compose for the move that follows: an orbit needs margin on all sides or the
 subject clips at 90°; a push-in needs depth and a vanishing point.
 
+#### Working from the user's reference images
+
+If the user has supplied references, use them rather than paraphrasing them:
+
+```
+python motionkit.py image --project <p> --reference a.jpg,b.jpg     --prompt "..." --out hero_v1.png
+```
+
+This switches to the edit endpoint automatically (up to 14 images, same $0.15).
+`video --reference` does the same for motion (up to 9), and there the prompt
+addresses them as **[Image1]**, **[Image2]** — say which is which, or the model
+guesses. The reference video endpoint composes from the set and has no single
+start frame, so `--image` and `--loop` do not apply there.
+
+Two judgement calls that stay yours: a reference constrains the direction, so
+say plainly when it fights the register the user picked; and if a reference is
+someone's photograph or a recognisable product, raise the IP question before
+rendering, not after.
+
 For a text-behind direction, run `cutout` on the approved still. It writes a PNG
 with alpha to `build/` and publishes a copy into `site/cutout/`.
 

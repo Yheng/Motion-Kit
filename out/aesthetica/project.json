@@ -1,0 +1,17 @@
+{
+  "name": "aesthetica",
+  "provider": "fal",
+  "created": "2026-09-04T15:53:17Z",
+  "models": {
+    "image": null,
+    "video": null,
+    "cutout": null
+  },
+  "defaults": {
+    "count": 180,
+    "width": 1600,
+    "mobile_width": 900,
+    "format": "webp",
+    "quality": 80
+  }
+}

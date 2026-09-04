@@ -6,14 +6,16 @@
   "key_url": "https://fal.ai/dashboard/keys",
   "catalog_url": "https://fal.ai/models",
   "queue_base": "https://queue.fal.run",
-  "verified": "Endpoint slug, per-second price, 15s cap and the video field names were checked against fal.ai on 2026-09-04, and image/cutout/video were all run live. duration must be a STRING enum ('4'..'15' or 'auto'); a float is rejected with 422. Note that fal reports such a failure as status COMPLETED in the queue - the refusal only appears when you fetch the response.",
+  "verified": "Endpoint slug, per-second price, 15s cap and the video field names were checked against fal.ai on 2026-09-04, and image/cutout/video were all run live. duration must be a STRING enum ('4'..'15' or 'auto'); a float is rejected with 422. Note that fal reports such a failure as status COMPLETED in the queue - the refusal only appears when you fetch the response. Reference endpoints added 2026-09-05 from fal's docs: nano-banana-pro/edit takes image_urls (up to 14, $0.15/image, 4K at 2x); seedance reference-to-video takes image_urls (up to 9) and the prompt addresses them as [Image1], [Image2]. Data URIs are PROVEN on seedance image-to-video but UNDOCUMENTED on /edit - if a call is rejected for the input format, an upload step is needed rather than inlining.",
   "models": {
     "image": "fal-ai/nano-banana-pro",
     "image_cheap": "fal-ai/nano-banana-2",
     "video": "bytedance/seedance-2.0/fast/image-to-video",
     "video_quality": "bytedance/seedance-2.0/image-to-video",
     "video_cheap": "fal-ai/bytedance/seedance/v1/lite/image-to-video",
-    "cutout": "fal-ai/birefnet/v2"
+    "cutout": "fal-ai/birefnet/v2",
+    "image_reference": "fal-ai/nano-banana-pro/edit",
+    "video_reference": "bytedance/seedance-2.0/fast/reference-to-video"
   },
   "fields": {
     "image": {
@@ -41,6 +43,18 @@
       "video": {
         "start_image": "start_image_url"
       }
+    },
+    "*nano-banana-pro/edit*": {
+      "image": {
+        "reference": "image_urls"
+      }
+    },
+    "*reference-to-video*": {
+      "video": {
+        "reference": "image_urls",
+        "start_image": null,
+        "end_image": null
+      }
     }
   },
   "moderation_patterns": [
@@ -52,7 +66,9 @@
     "rejected"
   ],
   "limits": {
-    "max_seconds": 15
+    "max_seconds": 15,
+    "max_reference_images": 14,
+    "max_reference_images_video": 9
   },
   "pricing": {
     "image_usd": 0.15,

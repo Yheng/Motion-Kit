@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>{{Title tag — primary keyword first, under 60 characters}}</title>
+<meta name="description" content="{{Meta description, under 155 characters.}}">
+<link rel="canonical" href="{{https://example.com/}}">
+<meta name="robots" content="index,follow,max-image-preview:large">
+
+<!-- The poster is the LCP element. This preload must match the <img> below
+     exactly, or the browser downloads the poster twice. -->
+<link rel="preload" as="image" href="poster/hero.webp" type="image/webp" fetchpriority="high">
+
+<!-- FONT SLOT — a CDN is permitted. Uncomment and set the family, then declare
+     the roles in brand.css. Preload only the ONE display face: a huge H1
+     swapping late is the likeliest source of layout shift here, and CLS < 0.1
+     is a target. For EU client work note that Google Fonts discloses visitor
+     IPs; `python motionkit.py fonts --self-host` vendors the pairing instead.
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=FAMILY&display=swap">
+-->
+
+<!-- Order matters: scaffold first, brand second. brand.css is unlayered and so
+     wins over styles.css without !important. -->
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="brand.css">
+
+<script src="scrub.js" defer></script>
+
+<!-- ── PASTE FROM: python motionkit.py frames --project <p> --name <section> ──
+     The counts are files measured on disk, not the numbers requested — ffmpeg's
+     fps filter rounds, and a count that is one too high makes the engine fetch
+     a frame that does not exist, which fails SILENTLY. -->
+<script>
+window.SCRUB_SECTIONS = [
+  {
+    section: "#hero",
+    name: "hero",
+    frameCount: { desktop: 180, mobile: 90 },
+    format: "webp",
+    framePath: (n, v) =>
+      `frames/hero/${v}/frame_${String(n).padStart(4, "0")}.webp`,
+  },
+];
+</script>
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{canonical}}">
+<meta property="og:title" content="{{}}">
+<meta property="og:description" content="{{}}">
+<meta property="og:image" content="{{absolute URL to a 1200x630 image}}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{}}">
+<meta name="twitter:description" content="{{}}">
+<meta name="twitter:image" content="{{absolute URL}}">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "Organization", "@id": "{{url}}#org", "name": "{{}}", "url": "{{}}" },
+    { "@type": "WebSite", "@id": "{{url}}#site", "url": "{{}}", "name": "{{}}",
+      "publisher": { "@id": "{{url}}#org" } },
+    { "@type": "WebPage", "@id": "{{url}}#page", "url": "{{}}", "name": "{{}}",
+      "description": "{{}}", "isPartOf": { "@id": "{{url}}#site" } }
+  ]
+}
+</script>
+
+<!-- ANALYTICS SLOT — inactive by design. Nothing loads until you paste a
+     snippet here. Keep it last in <head> and prefer defer or async.
+<script defer src="https://example.com/analytics.js"></script>
+-->
+</head>
+
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="nav">
+  <a class="nav__logo" href="/" aria-label="{{Brand}} home">{{Brand}}</a>
+  <nav class="nav__links" aria-label="Primary">
+    <ul>
+      <li><a href="#systems">{{Nav 1}}</a></li>
+      <li><a href="#record">{{Nav 2}}</a></li>
+      <li><a href="#specification">{{Nav 3}}</a></li>
+    </ul>
+  </nav>
+  <a class="btn nav__cta" href="#contact">{{CTA 1 of 4}}</a>
+</header>
+
+<main id="main">
+
+  <!-- The scroll track. Its height is how far the sequence scrubs over, and it
+       must stay under 40% of total document scroll or the page below reads as
+       an afterthought. Set --track-h from the direction's hero share. -->
+  <section id="hero" class="scrub">
+    <div class="stage">
+
+      <!-- z 1 — the LCP element. Present before any JS runs. Content-identical
+           to frame 1, so the fade to canvas is invisible. -->
+      <picture>
+        <source srcset="poster/hero.webp" type="image/webp">
+        <img class="stage__poster" src="poster/hero.jpg"
+             width="1600" height="900" fetchpriority="high" decoding="async"
+             alt="{{Real descriptive alt text, written in the copy phase}}">
+      </picture>
+
+      <!-- z 10 — decorative. Every word of meaning lives in the DOM below. -->
+      <canvas class="stage__canvas" aria-hidden="true"></canvas>
+
+      <!-- z 20 — real, selectable, translatable, indexable copy.
+           ────────────────────────────────────────────────────────────────────
+           THE OPENING BLOCK uses data-out: it is the hero HANDING OVER as the
+           sequence takes command. Never give hero copy a data-in starting at 0
+           — the page loads at exactly progress 0 and the headline would be
+           invisible on arrival.
+
+           BEATS use data-beat="first last", in 1-based frame numbers of the
+           DESKTOP sequence — the same numbers the contact sheet prints:
+
+               python motionkit.py contact --project <p> --name hero
+
+           A beat is a stretch where the picture says one thing, and its
+           sentence must name something visible in those frames and not in the
+           previous ones. Three to five beats; 8-18 words each.
+
+           Two rules that are easy to get wrong:
+             - Scrubbing runs BACKWARDS, so beats are independent statements,
+               never a sequence with connectives like "first" or "and finally".
+             - Re-slicing at a different --count is safe (the ratio is
+               preserved), but RE-RENDERING the clip invalidates every beat.
+               Re-run contact and re-check them: the numbers still point at
+               frames, but the frames now show something else.
+
+           With the engine off, every beat is visible at once and in document
+           order, so they must read as coherent prose. Beats are <p>, never
+           headings — the single h1 and the heading outline stay untouched. And
+           no beat may be the only place a fact appears; each claim also lives
+           in a band below, which is what frees beats to be short. -->
+      <div class="stage__overlay stage__overlay--stack">
+
+        <div class="beat beat--open" data-out=".40 .54">
+          <p class="eyebrow">{{Eyebrow}}</p>
+          <h1 class="display">{{H1 — the only h1 on the page}}</h1>
+          <p class="lede">{{One or two sentences.}}</p>
+          <p><a class="btn" href="#contact">{{CTA 2 of 4}}</a></p>
+          <p class="scroll-hint" aria-hidden="true">Scroll</p>
+        </div>
+
+        <div class="beat" data-beat="31 70"><p>{{Beat 2 — name what the turn reveals.}}</p></div>
+        <div class="beat" data-beat="71 120"><p>{{Beat 3 — the mechanism now in view.}}</p></div>
+        <div class="beat" data-beat="121 179"><p>{{Beat 4 — the consequence.}}</p></div>
+
+      </div>
+
+      <!-- z 30 — CUTOUT. The subject above the headline, so type passes behind
+           it while the full frame scrubs underneath. Requires a PNG with alpha.
+
+           ONLY valid when the subject HOLDS STILL. v1 is a static cutout over a
+           moving plate, so a turntable or orbit — anything that re-poses the
+           subject — makes this diverge within a few frames and the page shows
+           two subjects. Suits light sweeps, drifting particles, a moving
+           environment behind a static subject.
+
+           DELETE this element when the direction has no text-behind. Nothing in
+           the CSS or JS needs changing; the z-band simply has a hole at 30. -->
+      <img class="stage__cutout" src="cutout/hero_cutout.png"
+           width="1600" height="900" alt="" aria-hidden="true">
+      <!-- /CUTOUT -->
+
+    </div>
+  </section>
+
+  <!-- ── THE PAGE BELOW ──────────────────────────────────────────────────────
+       A section takes ONE ground and ONE content shape. Grounds:
+       (default) · .band--invert · .band--field. Width: .band--bleed. Rhythm:
+       .band--tight · .band--tall. Shapes: .grid-3 .steps .split .stat-row
+       .statement .figure .slab .faq .logos
+
+       Six budgets keep it a page instead of a sampler, and `motionkit.py check`
+       enforces them:
+         1. one ground per band
+         2. the inversion count comes from the direction's ground rhythm
+         3. one .band--bleed per page
+         4. one .statement per page, in the section named as the peak
+         5. shapes never adjacent, never more than twice
+         6. at most TWO loud moves per band — invert/field, bleed, statement,
+            stat-row — except the peak band, which gets three. That is what
+            makes it the peak. -->
+
+  <section id="what" class="band">
+    <div class="wrap">
+      <h2>{{Section heading}}</h2>
+      <ul class="grid-3">
+        <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+        <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+        <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Supporting imagery is free: `pluck` copies frames you already paid for
+       out of the sequence. At least one supporting image should come from it. -->
+  <section id="systems" class="band band--bleed">
+    <div class="wrap">
+      <div class="split">
+        <div class="split__media">
+          <figure class="figure">
+            <img src="still/hero_0045.webp" width="1600" height="900"
+                 alt="{{Descriptive alt}}" loading="lazy" decoding="async">
+            <figcaption>{{Caption}}</figcaption>
+          </figure>
+        </div>
+        <div class="split__body flow">
+          <h2>{{Heading}}</h2>
+          <ol class="steps flow">
+            <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+            <li class="flow"><h3>{{}}</h3><p>{{}}</p></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE PEAK. The one section carrying the page's biggest type below the
+       hero, and the only band allowed three loud moves. -->
+  <section id="record" class="band band--invert band--tall">
+    <div class="wrap flow">
+      <h2 class="visually-hidden">{{Accessible heading for the outline}}</h2>
+      <p class="statement">{{The page's one statement.}}<cite>{{Attribution}}</cite></p>
+      <ul class="stat-row">
+        <li class="stat"><span class="stat__figure">{{00}}</span><span class="stat__label">{{}}</span></li>
+        <li class="stat"><span class="stat__figure">{{00}}</span><span class="stat__label">{{}}</span></li>
+        <li class="stat"><span class="stat__figure">{{00}}</span><span class="stat__label">{{}}</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="cta-mid" class="band band--tight">
+    <div class="wrap flow">
+      <h2>{{Mid-page CTA heading}}</h2>
+      <p><a class="btn" href="#contact">{{CTA 3 of 4}}</a></p>
+    </div>
+  </section>
+
+  <section id="specification" class="band">
+    <div class="wrap">
+      <h2>{{Specification}}</h2>
+      <dl class="faq">
+        <dt>{{Label}}</dt><dd>{{Value}}</dd>
+        <dt>{{Label}}</dt><dd>{{Value}}</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section id="contact" class="band band--field">
+    <div class="wrap flow">
+      <h2>{{Closing CTA}}</h2>
+      <p class="measure">{{}}</p>
+
+      <!-- Live by default, so the page converts with zero configuration. -->
+      <p><a class="btn" href="mailto:{{you@example.com}}">{{CTA 4 of 4}}</a></p>
+
+      <!-- FORM SLOT — inactive by design. A static page cannot post to itself,
+           so this needs a third-party endpoint (Formspree, Basin, Netlify
+           Forms). Paste its action below, uncomment, delete the mailto button
+           above, and test one real submission before shipping. A dead button is
+           worse than no form.
+      <form class="form" action="https://formspree.io/f/YOUR_ID" method="POST">
+        <label for="f-email">Email</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" required>
+        <label for="f-msg">Message</label>
+        <textarea id="f-msg" name="message" rows="4" required></textarea>
+        <button class="btn" type="submit">{{Submit}}</button>
+      </form>
+      -->
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap flow">
+    <a class="footer__logo" href="/">{{Brand}}</a>
+    <nav aria-label="Footer">
+      <ul><li><a href="#specification">{{}}</a></li><li><a href="#contact">{{}}</a></li></ul>
+    </nav>
+    <p class="footer__legal">&copy; {{year}} {{Brand}}. {{}}</p>
+  </div>
+</footer>
+</body>
+</html>

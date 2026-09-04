@@ -1,0 +1,146 @@
+/*
+ * motion-kit — THE BRAND LAYER. This is the file to edit per project.
+ *
+ * styles.css is structural scaffolding and stays pristine. This file carries
+ * every design decision: palette, typography, texture, rhythm. It loads after
+ * styles.css and is deliberately UNLAYERED, so it beats the @layer scaffold
+ * rules there regardless of specificity — you never need !important, and you
+ * never need to match a scaffold selector exactly.
+ *
+ * Two things this file must never do, because they break the effect:
+ *   1. Do not set position, height, inset, z-index, overflow or object-fit on
+ *      .stage, .stage__*, .scrub or .nav. Scaffold owns geometry.
+ *   2. Do not put overflow:hidden, transform, filter, contain:paint or
+ *      will-change on html, body, main, or any wrapper of .scrub. Any of those
+ *      silently kills position:sticky and the hero freezes on a single frame.
+ *
+ * What follows is a deliberately neutral placeholder so an unbranded page is
+ * legible. Replace all of it — a real direction picks five named colours and a
+ * type pairing with roles.
+ */
+
+/* ── THE EIGHT ROLE DECLARATIONS ───────────────────────────────────────────
+ * This is the brand layer's one structural obligation. styles.css points every
+ * band at --ground-N / --ink-N / --rule-N / --muted-N and supplies no values;
+ * these are the values.
+ *
+ * Ground 1 is the page's default. Ground 2 is what .band--invert switches to.
+ * --field-* is the accent ground used by .band--field, normally once per page.
+ *
+ * Omit them and nothing breaks: every band falls back to a transparent ground
+ * with inherited ink, i.e. an ordinary single-ground page. There is no way to
+ * get white-on-white out of this.
+ */
+:root {
+  --ground-1: #fbfbfa;  --ink-1: #14161a;  --rule-1: #dcdde0;  --muted-1: #5c626b;
+  --ground-2: #14161a;  --ink-2: #f4f4f6;  --rule-2: #33363c;  --muted-2: #9aa0aa;
+  --field-bg: #14161a;  --field-fg: #f4f4f6;
+}
+
+/* ── typography ────────────────────────────────────────────────────────────
+ * A direction names a PAIRING WITH ROLES — which face carries display, which
+ * carries text, which carries data — not two family names.
+ *
+ * A font CDN is permitted. To use one, add to <head> BEFORE this stylesheet:
+ *
+ *   <link rel="preconnect" href="https://fonts.googleapis.com">
+ *   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ *   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">
+ *
+ * Two things to get right, because they hit the targets the spec sets:
+ *   - Preload the ONE display face and let the rest arrive normally. A huge H1
+ *     swapping late is the most likely source of layout shift on this page, and
+ *     CLS < 0.1 is a stated target. Pair with size-adjust metrics below.
+ *   - Google Fonts discloses visitor IPs to a third party. For EU client work,
+ *     run `python motionkit.py fonts --self-host` to vendor the pairing into
+ *     site/fonts/ and rewrite these rules.
+ *
+ * Metric-matched fallback, so the swap does not move anything. Tune
+ * size-adjust to the chosen face; 100% is a no-op placeholder.
+ *
+ *   @font-face { font-family: "Display Fallback"; src: local("Arial");
+ *                size-adjust: 100%; ascent-override: 90%; descent-override: 22%; }
+ */
+:root {
+  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: var(--font-display);
+  --font-data: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+
+  /* Scale break. The ratio must HOLD BELOW THE HERO — a page that is 9x in the
+     stage and 2.5rem everywhere else reads as flat no matter how good the
+     hero is. --size-statement is the page's one display moment below the fold. */
+  --size-statement: clamp(2rem, 6vw, 4.5rem);
+  --size-stat: 2.5em;
+}
+
+body {
+  background: var(--ground-1);
+  color: var(--ink-1);
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  line-height: 1.6;
+}
+
+h1, h2, h3, .display, .statement {
+  font-family: var(--font-display);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+
+.display { font-size: clamp(2.5rem, 7vw, 6rem); }
+h2 { font-size: clamp(1.75rem, 3.5vw, 3rem); }
+h3 { font-size: 1.125rem; }
+
+.eyebrow, .scroll-hint, .stat__label, .figure figcaption {
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--band-muted);
+}
+
+.lede { font-size: clamp(1.05rem, 1.6vw, 1.35rem); max-width: var(--measure); }
+.band p { max-width: var(--measure); }
+
+/* ── the hero plate ────────────────────────────────────────────────────────
+ * Overlay copy sits over whatever frame happens to be behind it, which changes
+ * as the sequence scrubs. Set the colour to suit the PLATE, not the page: a
+ * dark clip wants light copy even on a light page, and vice versa. Getting
+ * this backwards is an invisible hero.
+ *
+ * --scrim is the guarantee. It is a gradient behind the copy column so
+ * contrast holds at every frame instead of only the ones you happened to look
+ * at. Set it to `none` if the plate is genuinely uniform.
+ */
+.stage__overlay { color: #f4f4f6; }
+.stage__overlay::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: var(--scrim, linear-gradient(90deg, rgb(0 0 0 / 55%), rgb(0 0 0 / 0%) 60%));
+}
+.stage__overlay > * { position: relative; }   /* above the scrim */
+
+.nav {
+  background: color-mix(in srgb, var(--ground-1) 82%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule-1);
+}
+.nav__logo, .footer__logo { font-family: var(--font-display); font-weight: 650; }
+.nav__links a { text-decoration: none; }
+
+.btn { border-color: currentColor; }
+.btn:hover { background: var(--band-fg); color: var(--band-bg); }
+
+/* --band-rule, not --rule-1: the divider between a light and a dark band must
+   be drawn in the CURRENT band's rule colour, or it reads as a rendering bug. */
+.band + .band { border-top: 1px solid var(--band-rule); }
+
+.quote blockquote p { font-size: 1.25rem; font-weight: 600; }
+.statement cite, .quote figcaption { color: var(--band-muted); }
+.footer { border-top: 1px solid var(--band-rule); color: var(--band-muted); }
+.footer__legal { font-size: 0.875rem; color: var(--band-muted); }
+
+/* Beats are the same voice as the lede: they are hero copy, not captions. */
+.beat p { font-size: clamp(1.05rem, 1.6vw, 1.35rem); max-width: 34ch; }
+.beat--open p.lede { max-width: var(--measure); }
+a { color: inherit; }
