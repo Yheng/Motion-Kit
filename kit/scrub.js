@@ -113,14 +113,51 @@
     return [a, b];
   }
 
+  // data-beat="first last [ramp]" — 1-based FRAME numbers of the DESKTOP
+  // sequence, matching the files on disk and the contact sheet the copy was
+  // written against. A beat lands on a pose, not on a scroll fraction.
+  //
+  // The reference is deliberately the desktop count, never the live one. Mobile
+  // covers the same clip in fewer frames (179 vs 89 on the reference build), so
+  // frame 45 is a quarter of the way through on desktop and half way through on
+  // mobile. Resolving against the live count would slide every beat onto a
+  // different pose the moment the viewport crossed 768px. Converting once
+  // against the desktop count yields a progress window that means the same
+  // moment on every variant — which is the whole point of authoring in frames.
+  function beatWindow(attr, count) {
+    var n = String(attr).trim().split(/[\s,]+/).map(parseFloat)
+      .filter(function (x) { return !isNaN(x); });
+    if (n.length < 2 || count < 2) return null;
+    var span = count - 1;
+    var ramp = (n.length > 2 ? n[2] : Math.max(4, Math.round(count * 0.04))) / span;
+    var a = clamp((n[0] - 1) / span, 0, 1);
+    var b = clamp((n[1] - 1) / span, 0, 1);
+    return { in0: a - ramp, in1: a, out0: b, out1: b + ramp };
+  }
+
+  // Must run once the counts are known. collectLines happens in buildSection,
+  // where count is still 0, so frame ranges cannot be resolved there.
+  function resolveWindows(s) {
+    var counts = s.cfg.frameCount || {};
+    var reference = counts.desktop || s.count || 0;
+    for (var i = 0; i < s.lines.length; i++) {
+      var l = s.lines[i];
+      if (!l.beat) continue;
+      var w = beatWindow(l.beat, reference);
+      if (!w) continue;
+      l.in0 = w.in0; l.in1 = w.in1; l.out0 = w.out0; l.out1 = w.out1;
+    }
+  }
+
   function collectLines(stage) {
-    var nodes = stage.querySelectorAll("[data-in],[data-out]");
+    var nodes = stage.querySelectorAll("[data-in],[data-out],[data-beat]");
     return Array.prototype.map.call(nodes, function (el) {
       var inWin = parseWindow(el.getAttribute("data-in"), 0) || [0, 0];
       var outWin = parseWindow(el.getAttribute("data-out"), 1) || [1, 1];
       var riseAttr = el.getAttribute("data-rise");
       return {
         el: el,
+        beat: el.getAttribute("data-beat"),   // resolved later, once count is known
         in0: inWin[0], in1: inWin[1],
         out0: outWin[0], out1: outWin[1],
         rise: riseAttr === null ? LINE_RISE : parseFloat(riseAttr) || 0,
@@ -383,6 +420,7 @@
     s.token++;               // abandons every in-flight load for the old variant
     s.variant = variant;
     s.count = frameCountFor(s.cfg, variant);
+    resolveWindows(s);   // frame ranges are relative to THIS variant's count
     s.frames = new Array(s.count);
     s.loaded = 0;
     s.ready = false;
@@ -439,6 +477,7 @@
     sections.forEach(function (s) {
       s.variant = pickVariant();
       s.count = frameCountFor(s.cfg, s.variant);
+      resolveWindows(s);
       s.frames = new Array(s.count);
       if (s.cfg.bg) s.stage.style.backgroundColor = s.cfg.bg;
       if (hasPin) s.pinned = clamp(pinned, 0, 1);
@@ -489,7 +528,18 @@
 
     // Something truthful for an automated check to assert, instead of eyeballing
     // pixels in a screenshot that may legitimately be blank.
-    window.__scrub = { sections: sections, boot: boot };
+    window.__scrub = {
+      sections: sections,
+      boot: boot,
+      // Resolved beat windows, so an automated check can prove no dead
+      // stretch — the classic failure of this pattern is a hero that goes
+      // blank for two seconds in the middle.
+      windows: function (i) {
+        return (sections[i || 0] || { lines: [] }).lines.map(function (l) {
+          return { beat: l.beat, in0: l.in0, in1: l.in1, out0: l.out0, out1: l.out1 };
+        });
+      }
+    };
   }
 
   if (reduceQuery && reduceQuery.addEventListener) {
