@@ -1,82 +1,119 @@
 /*
- * motion-kit — THE BRAND LAYER. This is the file to edit per project.
+ * mecha-samurai — brand layer. Direction 3, "Catalogue".
  *
- * styles.css is structural scaffolding and stays pristine. This file carries
- * every design decision: palette, typography, texture, rhythm. It loads after
- * styles.css and is deliberately UNLAYERED, so it beats the @layer scaffold
- * rules there regardless of specificity — you never need !important, and you
- * never need to match a scaffold selector exactly.
+ * Museum-white cyclorama, clinical studio light, the machine as a catalogued
+ * industrial object. Bright and precise, deliberately arguing against the
+ * neon-and-rain reading of "cyberpunk mecha".
  *
- * Two things this file must never do, because they break the effect:
- *   1. Do not set position, height, inset, z-index, overflow or object-fit on
- *      .stage, .stage__*, .scrub or .nav. Scaffold owns geometry.
- *   2. Do not put overflow:hidden, transform, filter, contain:paint or
- *      will-change on html, body, main, or any wrapper of .scrub. Any of those
- *      silently kills position:sticky and the hero freezes on a single frame.
- *
- * What follows is a deliberately neutral placeholder so an unbranded page is
- * legible. Replace all of it — a real direction picks five named colours and
- * two type families with roles.
- *
- * A note on web fonts: they are the most likely source of layout shift on this
- * page, because the H1 is enormous. Self-host woff2, preload the display face,
- * and use font-display:optional, or swap with a metric-matched fallback.
- * Nothing here may load from a third-party origin — site/ must stay
- * self-contained and deployable as a folder.
+ * Loads after styles.css and is unlayered, so it beats @layer scaffold without
+ * !important. It sets colour, type and texture only — never geometry on
+ * .stage, .stage__*, .scrub or .nav.
  */
 
 :root {
-  --fg: #14161a;
-  --bg: #fbfbfa;
-  --muted: #5c626b;
-  --accent: #14161a;
-  --rule: #dcdde0;
+  --cyclorama: #F4F4F2;   /* the ground the whole page sits on */
+  --graphite:  #1A1A1A;   /* body and display text */
+  --blueprint: #2B4C8C;   /* links, technical accents */
+  --machine:   #C8102E;   /* one red, used sparingly and only for action */
+  --rule:      #C9C9C6;   /* hairlines and table rules */
 
-  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fg: var(--graphite);
+  --bg: var(--cyclorama);
+
+  --font-display: "Helvetica Neue", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-body: var(--font-display);
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
 }
 
 body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--cyclorama);
+  color: var(--graphite);
   font-family: var(--font-body);
-  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
-  line-height: 1.6;
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.0625rem);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
+/* One family, carried by weight and width contrast rather than a second voice. */
 h1, h2, h3, .display {
   font-family: var(--font-display);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-weight: 650;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
 }
 
-.display { font-size: clamp(2.5rem, 7vw, 6rem); }
-h2 { font-size: clamp(1.75rem, 3.5vw, 3rem); }
-h3 { font-size: 1.125rem; }
+.display { font-size: clamp(2.75rem, 8vw, 7rem); text-transform: uppercase; }
+h2 { font-size: clamp(1.6rem, 3vw, 2.5rem); }
+h3 { font-size: 1rem; font-weight: 600; letter-spacing: 0; }
 
-.eyebrow {
-  font-size: 0.8125rem;
-  letter-spacing: 0.16em;
+.eyebrow, .scroll-hint {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
+  font-weight: 400;
 }
 
-.lede { font-size: clamp(1.05rem, 1.6vw, 1.35rem); max-width: var(--measure); }
-.measure, .band p { max-width: var(--measure); }
+/* THE DIRECTION-SPECIFIC OVERRIDE THAT MATTERS.
+   The kit default assumes a dark plate behind the hero and sets light overlay
+   text. This cyclorama is near-white, so hero copy is graphite like the rest of
+   the page. Getting this wrong is white-on-white and an unreadable hero. */
+.stage__overlay { color: var(--graphite); }
+.stage__overlay .eyebrow { color: var(--blueprint); }
+.stage__overlay .scroll-hint { color: #7A7A78; }
 
-/* The hero sits over a dark plate, so its copy is light regardless of the page
-   background. This is the one place the two colour schemes meet. */
-.stage__overlay { color: #f4f4f6; }
-.stage__overlay .eyebrow { color: #a9adb6; }
+.nav {
+  background: color-mix(in srgb, var(--cyclorama) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.875rem;
+}
+.nav__logo, .footer__logo {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.nav__links a { text-decoration: none; }
+.nav__links a:hover { color: var(--blueprint); }
 
-.nav { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(8px); }
-.nav__logo, .footer__logo { font-family: var(--font-display); font-weight: 650; }
+.lede { font-size: clamp(1.05rem, 1.5vw, 1.3rem); color: #3C3C3A; }
 
-.btn { border-color: currentColor; }
-.btn:hover { background: var(--fg); color: var(--bg); }
-.stage__overlay .btn:hover { background: #f4f4f6; color: #14161a; }
+.btn {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-color: var(--graphite);
+  border-radius: 0;               /* nothing on this page is rounded */
+}
+.btn:hover { background: var(--machine); border-color: var(--machine); color: #fff; }
+.nav__cta { border-color: var(--machine); color: var(--machine); }
 
 .band + .band { border-top: 1px solid var(--rule); }
-.footer { border-top: 1px solid var(--rule); color: var(--muted); }
-.scroll-hint { font-size: 0.8125rem; letter-spacing: 0.16em; text-transform: uppercase; }
+
+/* Spec sheet: tabular figures are the whole point of a catalogue page. */
+.faq { font-variant-numeric: tabular-nums; }
+.faq > dt {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6B6B69;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.6rem;
+}
+.faq > dd { margin: 0.15rem 0 1.1rem; font-size: 1.0625rem; }
+
+.steps > li::before {
+  font-family: var(--font-mono);
+  color: var(--blueprint);
+}
+.quote blockquote p { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
+.quote figcaption { font-family: var(--font-mono); font-size: 0.75rem;
+                    letter-spacing: 0.12em; text-transform: uppercase; color: #6B6B69; }
+.logos { font-family: var(--font-mono); font-size: 0.75rem;
+         letter-spacing: 0.12em; text-transform: uppercase; color: #6B6B69; }
+
+.footer { border-top: 1px solid var(--rule); color: #6B6B69; font-size: 0.875rem; }
+a { color: var(--blueprint); }

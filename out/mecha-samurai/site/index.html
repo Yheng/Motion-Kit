@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>{{Title tag — primary keyword first, under 60 characters}}</title>
-<meta name="description" content="{{Meta description, under 155 characters.}}">
-<link rel="canonical" href="{{https://example.com/}}">
+<title>{{TACHI-07}} — Armoured Combat Exoskeleton | {{Kurogane Dynamics}}</title>
+<meta name="description" content="{{TACHI-07}} is a samurai-class armoured combat exoskeleton built to hold ground in dense cities. Plate over a hydraulic frame, serviceable in the field.">
+<link rel="canonical" href="https://example.com/">
 <meta name="robots" content="index,follow,max-image-preview:large">
 
 <!-- The poster is the LCP element. This preload must match the <img> below
@@ -30,7 +30,7 @@ window.SCRUB_SECTIONS = [
     name: "hero",
     frameCount: { desktop: 180, mobile: 90 },
     format: "webp",
-    bg: "#07070a",
+    bg: "#F4F4F2",
     framePath: (n, v) =>
       `frames/hero/${v}/frame_${String(n).padStart(4, "0")}.webp`,
   },
@@ -39,26 +39,30 @@ window.SCRUB_SECTIONS = [
 <!-- ─────────────────────────────────────────────────────────────────────── -->
 
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{canonical}}">
-<meta property="og:title" content="{{}}">
-<meta property="og:description" content="{{}}">
-<meta property="og:image" content="{{absolute URL to a 1200x630 image}}">
+<meta property="og:url" content="https://example.com/">
+<meta property="og:title" content="{{TACHI-07}} — Samurai-Class Armoured Combat Exoskeleton">
+<meta property="og:description" content="Plate over a hydraulic frame, serviceable in the field, one pilot. Built to hold ground in dense cities.">
+<meta property="og:image" content="https://example.com/poster/hero.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{}}">
-<meta name="twitter:description" content="{{}}">
-<meta name="twitter:image" content="{{absolute URL}}">
+<meta name="twitter:title" content="{{TACHI-07}} — Samurai-Class Armoured Combat Exoskeleton">
+<meta name="twitter:description" content="Plate over a hydraulic frame, serviceable in the field, one pilot.">
+<meta name="twitter:image" content="https://example.com/poster/hero.jpg">
 
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": "{{url}}#org", "name": "{{}}", "url": "{{}}" },
-    { "@type": "WebSite", "@id": "{{url}}#site", "url": "{{}}", "name": "{{}}",
-      "publisher": { "@id": "{{url}}#org" } },
-    { "@type": "WebPage", "@id": "{{url}}#page", "url": "{{}}", "name": "{{}}",
-      "description": "{{}}", "isPartOf": { "@id": "{{url}}#site" } }
+    { "@type": "Organization", "@id": "https://example.com/#org",
+      "name": "{{Kurogane Dynamics}}", "url": "https://example.com/" },
+    { "@type": "WebSite", "@id": "https://example.com/#site",
+      "url": "https://example.com/", "name": "{{Kurogane Dynamics}}",
+      "publisher": { "@id": "https://example.com/#org" } },
+    { "@type": "WebPage", "@id": "https://example.com/#page",
+      "url": "https://example.com/", "name": "{{TACHI-07}} — Samurai-Class Armoured Combat Exoskeleton",
+      "description": "A samurai-class armoured combat exoskeleton built for held ground in dense cities.",
+      "isPartOf": { "@id": "https://example.com/#site" } }
   ]
 }
 </script>
@@ -74,15 +78,15 @@ window.SCRUB_SECTIONS = [
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="nav">
-  <a class="nav__logo" href="/" aria-label="{{Brand}} home">{{Brand}}</a>
+  <a class="nav__logo" href="/" aria-label="{{Kurogane Dynamics}} home">{{Kurogane Dynamics}}</a>
   <nav class="nav__links" aria-label="Primary">
     <ul>
-      <li><a href="#how">{{Nav 1}}</a></li>
-      <li><a href="#proof">{{Nav 2}}</a></li>
-      <li><a href="#faq">{{Nav 3}}</a></li>
+      <li><a href="#systems">Systems</a></li>
+      <li><a href="#record">Field record</a></li>
+      <li><a href="#specification">Specification</a></li>
     </ul>
   </nav>
-  <a class="btn nav__cta" href="#contact">{{CTA 1 of 4}}</a>
+  <a class="btn nav__cta" href="#contact">Register interest</a>
 </header>
 
 <main id="main">
@@ -97,99 +101,121 @@ window.SCRUB_SECTIONS = [
         <source srcset="poster/hero.webp" type="image/webp">
         <img class="stage__poster" src="poster/hero.jpg"
              width="1600" height="900" fetchpriority="high" decoding="async"
-             alt="{{Real descriptive alt text, written in the copy phase}}">
+             alt="A nine-metre piloted exoskeleton standing at rest on a plain white studio background, its overlapping graphite and off-white armour plates and exposed knee and elbow actuators fully visible.">
       </picture>
 
       <!-- z 10 — decorative. Every word of meaning lives in the DOM below. -->
       <canvas class="stage__canvas" aria-hidden="true"></canvas>
 
       <!-- z 20 — real, selectable, translatable, indexable copy.
-           data-in  = "start end" fades a line IN across that scroll range.
-           data-out = "start end" fades it OUT. Both are fractions of this
-           section's scroll progress, 0 to 1. Omit data-in and the line is there
-           from the start; omit data-out and it never leaves.
-
-           NEVER give hero copy a data-in beginning at 0. It would be invisible
-           on arrival, which is the first thing a visitor sees. The first screen
-           is complete, and the copy fades out as the sequence takes over. -->
+           No data-in on the hero: the page loads at progress 0, so a line
+           fading in from 0 would be invisible on arrival. It fades out instead,
+           as the turntable takes over. -->
       <div class="stage__overlay">
-        <p class="eyebrow" data-out=".30 .42">{{Eyebrow}}</p>
-        <h1 class="display" data-out=".40 .54">{{H1 — the only h1 on the page}}</h1>
-        <p class="lede" data-out=".34 .46">{{One or two sentences.}}</p>
-        <p><a class="btn" href="#contact" data-out=".46 .60">{{CTA 2 of 4}}</a></p>
-        <p class="scroll-hint" data-out="0 .06" aria-hidden="true">Scroll</p>
+        <p class="eyebrow" data-out=".30 .42">{{Kurogane Dynamics}} — Samurai class</p>
+        <h1 class="display" data-out=".40 .54">{{TACHI-07}}. Armoured combat exoskeleton.</h1>
+        <p class="lede" data-out=".34 .46">Nine metres of articulated plate over a hydraulic frame.
+          Built to hold ground in dense cities, and to be repaired in one.</p>
+        <p><a class="btn" href="#specification" data-out=".46 .60">See the specification</a></p>
+        <p class="scroll-hint" data-out="0 .06" aria-hidden="true">Scroll to turn</p>
       </div>
-
-      <!-- z 30 — CUTOUT. The subject, above the headline, so type passes behind
-           it while the full frame scrubs underneath. Requires a cutout PNG with
-           alpha (transparency rules out JPEG).
-           DELETE this whole element when the direction has no text-behind
-           subject — nothing in the CSS or JS needs changing, and the z-band
-           simply has a hole at 30. -->
-      <img class="stage__cutout" src="cutout/hero_cutout.png"
-           width="1600" height="900" alt="" aria-hidden="true">
-      <!-- /CUTOUT -->
 
     </div>
   </section>
 
-  <section id="value" class="band">
+  <section id="what" class="band">
     <div class="wrap">
-      <h2>{{Section heading}}</h2>
+      <h2>A machine you can actually keep running</h2>
       <ul class="grid-3">
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
+        <li>
+          <h3>Plate, not skin</h3>
+          <p>Every panel is a serviceable part. Armour comes off in sections with hand tools,
+             so damage is a replacement rather than a recovery.</p>
+        </li>
+        <li>
+          <h3>One pilot</h3>
+          <p>A single seat, direct linkage, and no crew to coordinate. The machine does
+             what the person in it decided to do.</p>
+        </li>
+        <li>
+          <h3>Built for streets</h3>
+          <p>Sized and geared for held ground between buildings, not open country.
+             It walks where the people it protects already are.</p>
+        </li>
       </ul>
     </div>
   </section>
 
-  <section id="how" class="band">
+  <section id="systems" class="band">
     <div class="wrap">
-      <h2>{{How it works}}</h2>
+      <h2>Systems</h2>
       <ol class="steps">
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
-        <li><h3>{{}}</h3><p>{{}}</p></li>
+        <li>
+          <h3>Frame</h3>
+          <p>A load-bearing internal skeleton carries the weight; the plate carries nothing
+             but itself. Damage to the outside does not compromise the structure.</p>
+        </li>
+        <li>
+          <h3>Articulation</h3>
+          <p>Exposed hydraulic actuators at knee and elbow. Deliberately outside the armour
+             line, where they can be inspected and swapped without a lift.</p>
+        </li>
+        <li>
+          <h3>Power</h3>
+          <p>{{Nine-hour}} continuous operation at patrol load, with a hot-swap cell
+             behind the left shoulder guard.</p>
+        </li>
       </ol>
     </div>
   </section>
 
-  <section id="proof" class="band">
+  <section id="record" class="band">
     <div class="wrap">
-      <h2>{{Proof}}</h2>
+      <h2>Field record</h2>
       <figure class="quote">
-        <blockquote><p>{{Testimonial — mark invented claims in double braces}}</p></blockquote>
-        <figcaption>{{Name, role}}</figcaption>
+        <blockquote><p>{{We stopped planning around recovery vehicles. That is the whole
+          difference — the unit walks home.}}</p></blockquote>
+        <figcaption>{{Sera Okonkwo, Fleet Maintenance Lead}}</figcaption>
       </figure>
-      <ul class="logos"><li>{{}}</li><li>{{}}</li><li>{{}}</li></ul>
+      <ul class="logos">
+        <li>{{Harbour Authority}}</li>
+        <li>{{Ninth District}}</li>
+        <li>{{Meridian Transit}}</li>
+      </ul>
     </div>
   </section>
 
   <section id="cta-mid" class="band">
     <div class="wrap">
-      <h2>{{Mid-page CTA heading}}</h2>
-      <p><a class="btn" href="#contact">{{CTA 3 of 4}}</a></p>
+      <h2>Specify a unit for your district</h2>
+      <p class="measure">Configuration, basing and service intervals are quoted per deployment.</p>
+      <p><a class="btn" href="#contact">Talk to engineering</a></p>
     </div>
   </section>
 
-  <section id="faq" class="band">
+  <section id="specification" class="band">
     <div class="wrap">
-      <h2>{{FAQ}}</h2>
+      <h2>Specification</h2>
       <dl class="faq">
-        <dt>{{Question}}</dt><dd>{{Answer}}</dd>
-        <dt>{{Question}}</dt><dd>{{Answer}}</dd>
+        <dt>Class</dt><dd>Samurai, armoured combat exoskeleton</dd>
+        <dt>Standing height</dt><dd>{{9.1 m}}</dd>
+        <dt>Dry mass</dt><dd>{{14,200 kg}}</dd>
+        <dt>Crew</dt><dd>{{1}}</dd>
+        <dt>Endurance</dt><dd>{{9 h}} at patrol load</dd>
+        <dt>Armour</dt><dd>Sectional plate, {{hand-removable in 11 pieces}}</dd>
+        <dt>Actuation</dt><dd>Exposed hydraulic, {{knee and elbow}}</dd>
       </dl>
     </div>
   </section>
 
   <section id="contact" class="band">
     <div class="wrap">
-      <h2>{{Closing CTA}}</h2>
-      <p class="measure">{{}}</p>
+      <h2>Register interest</h2>
+      <p class="measure">Tell us the district, the basing, and what you are currently
+         running. Engineering answers directly.</p>
 
       <!-- Live by default, so the page converts with zero configuration. -->
-      <p><a class="btn" href="mailto:{{you@example.com}}">{{CTA 4 of 4}}</a></p>
+      <p><a class="btn" href="mailto:engineering@example.com">Email engineering</a></p>
 
       <!-- FORM SLOT — inactive by design. A static page cannot post to itself,
            so this needs a third-party endpoint (Formspree, Basin, Netlify
@@ -201,7 +227,7 @@ window.SCRUB_SECTIONS = [
         <input id="f-email" name="email" type="email" autocomplete="email" required>
         <label for="f-msg">Message</label>
         <textarea id="f-msg" name="message" rows="4" required></textarea>
-        <button class="btn" type="submit">{{Submit}}</button>
+        <button class="btn" type="submit">Send</button>
       </form>
       -->
     </div>
@@ -211,11 +237,12 @@ window.SCRUB_SECTIONS = [
 
 <footer class="footer">
   <div class="wrap">
-    <a class="footer__logo" href="/">{{Brand}}</a>
+    <a class="footer__logo" href="/">{{Kurogane Dynamics}}</a>
     <nav aria-label="Footer">
-      <ul><li><a href="#">{{}}</a></li><li><a href="#">{{}}</a></li></ul>
+      <ul><li><a href="#specification">Specification</a></li><li><a href="#contact">Contact</a></li></ul>
     </nav>
-    <p class="footer__legal">&copy; {{year}} {{Brand}}. {{}}</p>
+    <p class="footer__legal">&copy; 2026 {{Kurogane Dynamics}}. Fictional. Built as a
+      demonstration of motion-kit.</p>
   </div>
 </footer>
 </body>

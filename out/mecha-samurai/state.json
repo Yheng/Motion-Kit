@@ -1,11 +1,17 @@
 {
-  "phase": "still",
+  "phase": "copy",
   "approvals": {
     "directions": {
       "approved": true,
       "at": "2026-09-04T13:49:30Z",
       "choice": "3",
       "note": "Catalogue — museum-white cyclorama, clinical studio light, locked turntable. Chose the contrarian third: clinical white is the actual grammar of a product launch, and a full revolution loops cleanly for the seam check."
+    },
+    "copy": {
+      "approved": true,
+      "at": "2026-09-04T14:08:25Z",
+      "choice": null,
+      "note": "Catalogue direction. 13 invented claims marked in {{...}}: manufacturer, unit designation, all numeric specs, one testimonial and three client names. Hero copy carries no data-in, per the progress-0 rule."
     }
   },
   "spend": [],
@@ -19,6 +25,10 @@
     {
       "phase": "still",
       "at": "2026-09-04T13:50:07Z"
+    },
+    {
+      "phase": "copy",
+      "at": "2026-09-04T14:08:06Z"
     }
   ]
 }
