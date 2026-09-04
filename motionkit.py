@@ -1062,6 +1062,155 @@ def write_poster(ffmpeg: Path, first_frame: Path, poster_dir: Path,
     return [jpg, webp]
 
 
+def probe_dimensions(ffprobe: Path, image: Path) -> "tuple[int, int]":
+    proc = subprocess.run(
+        [str(ffprobe), "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(image)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60,
+    )
+    try:
+        width, height = proc.stdout.decode("utf-8", "replace").strip().split("x")[:2]
+        return int(width), int(height)
+    except ValueError:
+        die(f"could not read the dimensions of {image.name}")
+
+
+def section_frames(project: str, name: str,
+                   variant: str = "desktop") -> "tuple[Path, str, int]":
+    """(directory, format, count) for an already-sliced section."""
+    state = load_state(project)
+    section = (state.get("sections") or {}).get(name)
+    if not section:
+        known = ", ".join(state.get("sections") or {}) or "none yet"
+        die(f"section '{name}' has not been sliced (known: {known}).\n"
+            f"  Run: python motionkit.py frames --project {project} --name {name}", code=2)
+    variants = section.get("variants") or {}
+    if variant not in variants:
+        die(f"section '{name}' has no {variant} variant", code=2)
+    directory = project_dir(project) / "site" / "frames" / name / variant
+    if not directory.exists():
+        die(f"{directory} is missing — frames are gitignored and cleared on "
+            f"re-slice. Run `frames` again.", code=2)
+    return directory, section.get("format", "webp"), int(variants[variant]["count"])
+
+
+def cmd_contact(args: argparse.Namespace) -> int:
+    """Tile evenly-spaced frames into one sheet, so the clip can be *looked at*.
+
+    Nothing else in the pipeline shows what is at a given frame, which is why
+    copy ends up naming nothing on screen. Arithmetic is not a substitute: the
+    reference build's "360 turntable" was uneven, drifted sideways, and grew a
+    doorway that was not in the approved still.
+    """
+    require_project(args.project)
+    directory, fmt, count = section_frames(args.project, args.name)
+    ffmpeg, _ = ensure_ffmpeg()
+
+    cells = max(2, min(args.cells, count))
+    cols = max(1, min(args.cols, cells))
+    rows = -(-cells // cols)
+    step = max(1, count // cells)
+
+    out = project_dir(args.project) / "build" / "contact" / f"{args.name}.jpg"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    # mod(n\,step): the comma is escaped because commas separate filters.
+    run_ffmpeg(ffmpeg, [
+        "-start_number", "1", "-i", str(directory / f"frame_%04d.{fmt}"),
+        "-vf", f"select='not(mod(n\\,{step}))',scale={args.width}:-2,tile={cols}x{rows}",
+        "-frames:v", "1", "-q:v", "3", str(out),
+    ], f"building the contact sheet for '{args.name}'")
+
+    picks = [i * step + 1 for i in range(cells) if i * step + 1 <= count]
+    say(f"{mark('ok')} {rel_posix(out, project_dir(args.project))}"
+        f"  ({len(picks)} cells, {cols}x{rows})")
+    say(f"  {'cell':>4}  {'frame':>5}  {'progress':>8}")
+    for index, frame in enumerate(picks, start=1):
+        say(f"  {index:>4}  {frame:>5}  {(frame - 1) / max(count - 1, 1):>8.3f}")
+
+    with mutate_state(args.project) as state:
+        state["sections"][args.name]["contact"] = {
+            "path": rel_posix(out, project_dir(args.project)),
+            "cells": picks, "at": now_iso(),
+        }
+    say(f"\n  Read that image, then write one line per cell describing what is")
+    say(f"  visible. Beats come from the observations, never from the arithmetic.")
+    say(f"  $0.00 — no provider was called.")
+    return 0
+
+
+def cmd_pluck(args: argparse.Namespace) -> int:
+    """Copy frames out of the sequence into site/still/ as page imagery.
+
+    site/frames/ is gitignored and cleared by every re-slice, so a page cannot
+    reference it directly — it would break on clone and on the next `frames`
+    run. Plucking costs nothing: these frames are already paid for.
+    """
+    directory_project = require_project(args.project)
+    directory, fmt, count = section_frames(args.project, args.name)
+    ffmpeg, ffprobe = ensure_ffmpeg()
+
+    try:
+        numbers = [int(n) for n in str(args.frames).replace(" ", "").split(",") if n]
+    except ValueError:
+        die("--frames takes comma-separated frame numbers, e.g. 45,90,135", code=2)
+
+    crop = None
+    if args.crop:
+        try:
+            crop = [float(v) for v in str(args.crop).split(",")]
+            assert len(crop) == 4 and all(0 <= v <= 1 for v in crop)
+        except (ValueError, AssertionError):
+            die("--crop takes four fractions of the source: x,y,w,h "
+                "(e.g. 0.35,0.10,0.40,0.80)", code=2)
+
+    out_format = args.format or fmt
+    dest = directory_project / "site" / "still"
+    dest.mkdir(parents=True, exist_ok=True)
+    made = []
+
+    for number in numbers:
+        if not 1 <= number <= count:
+            die(f"frame {number} is outside '{args.name}' (1–{count})", code=2)
+        source = directory / f"frame_{number:04d}.{fmt}"
+        if not source.exists():
+            die(f"{source} is missing — re-slice with `frames`", code=2)
+
+        chain = []
+        if crop:
+            width, height = probe_dimensions(ffprobe, source)
+            # Fractions, not pixels, so a crop survives a re-slice at a
+            # different --width.
+            chain.append("crop={}:{}:{}:{}".format(
+                max(2, int(width * crop[2])), max(2, int(height * crop[3])),
+                int(width * crop[0]), int(height * crop[1])))
+        chain.append(f"scale={args.width}:-2:flags=lanczos")
+
+        out = dest / f"{args.name}_{number:04d}.{out_format}"
+        run_ffmpeg(ffmpeg, ["-i", str(source), "-vf", ",".join(chain)]
+                   + encoder_args(out_format, args.quality) + [str(out)],
+                   f"plucking frame {number}")
+        made.append(out)
+
+    with mutate_state(args.project) as state:
+        for out, number in zip(made, numbers):
+            state["assets"][out.stem] = {
+                "kind": "still", "path": rel_posix(out, directory_project),
+                "bytes": out.stat().st_size, "at": now_iso(),
+                "provider": None, "model": None,
+                "params": {"section": args.name, "frame": number,
+                           "crop": args.crop, "width": args.width},
+                "prompt": None, "usd": 0.0, "job_id": None,
+                "derived_from": args.name, "approved": False,
+            }
+
+    total = sum(p.stat().st_size for p in made) / 1e6
+    for out in made:
+        say(f"  {mark('ok')} {rel_posix(out, directory_project / 'site')}")
+    say(f"  {len(made)} image(s), {total:.2f} MB")
+    say(f"  $0.00 — extracted from frames you already paid for")
+    return 0
+
+
 def scrub_sections_snippet(sections: dict) -> str:
     """Paste-ready config, built from counts measured on disk."""
     entries = []
@@ -1076,7 +1225,6 @@ def scrub_sections_snippet(sections: dict) -> str:
             f'    name: "{name}",\n'
             f'    frameCount: {{ {counts} }},\n'
             f'    format: "{fmt}",\n'
-            f'    bg: "#07070a",\n'
             f'    framePath: (n, v) =>\n'
             f'      `frames/{name}/${{v}}/frame_${{String(n).padStart(4, "0")}}.{fmt}`,\n'
             f'  }}'
@@ -1865,6 +2013,26 @@ def build_parser() -> argparse.ArgumentParser:
     phase.add_argument("--choice", help="what was chosen at that gate")
     phase.add_argument("--note", help="why")
     phase.set_defaults(func=cmd_phase)
+
+    contact = sub.add_parser("contact",
+                             help="tile frames into one sheet so the clip can be looked at")
+    contact.add_argument("--project", required=True)
+    contact.add_argument("--name", required=True)
+    contact.add_argument("--cells", type=int, default=12)
+    contact.add_argument("--cols", type=int, default=4)
+    contact.add_argument("--width", type=int, default=400, help="per cell")
+    contact.set_defaults(func=cmd_contact)
+
+    pluck = sub.add_parser("pluck",
+                           help="copy frames into site/still/ as page imagery ($0)")
+    pluck.add_argument("--project", required=True)
+    pluck.add_argument("--name", required=True, help="section the frames came from")
+    pluck.add_argument("--frames", required=True, help="comma-separated, e.g. 45,90")
+    pluck.add_argument("--crop", help="x,y,w,h as fractions of the source")
+    pluck.add_argument("--width", type=int, default=1600)
+    pluck.add_argument("--format", choices=["webp", "jpg", "avif"])
+    pluck.add_argument("--quality", type=int, default=82)
+    pluck.set_defaults(func=cmd_pluck)
 
     cost = sub.add_parser("cost", help="itemised spend log and total")
     cost.add_argument("--project", required=True)

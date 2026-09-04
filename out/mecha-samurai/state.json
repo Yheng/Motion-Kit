@@ -113,6 +113,82 @@
       "job_id": "01a06cc6-84eb-7860-b485-a6c1912f5f1f",
       "derived_from": "hero_v1",
       "approved": false
+    },
+    "hero_0043": {
+      "kind": "still",
+      "path": "site/still/hero_0043.webp",
+      "bytes": 16042,
+      "at": "2026-09-04T15:02:42Z",
+      "provider": null,
+      "model": null,
+      "params": {
+        "section": "hero",
+        "frame": 43,
+        "crop": null,
+        "width": 1200
+      },
+      "prompt": null,
+      "usd": 0.0,
+      "job_id": null,
+      "derived_from": "hero",
+      "approved": false
+    },
+    "hero_0071": {
+      "kind": "still",
+      "path": "site/still/hero_0071.webp",
+      "bytes": 27596,
+      "at": "2026-09-04T15:02:42Z",
+      "provider": null,
+      "model": null,
+      "params": {
+        "section": "hero",
+        "frame": 71,
+        "crop": null,
+        "width": 1200
+      },
+      "prompt": null,
+      "usd": 0.0,
+      "job_id": null,
+      "derived_from": "hero",
+      "approved": false
+    },
+    "hero_0141": {
+      "kind": "still",
+      "path": "site/still/hero_0141.webp",
+      "bytes": 14606,
+      "at": "2026-09-04T15:02:42Z",
+      "provider": null,
+      "model": null,
+      "params": {
+        "section": "hero",
+        "frame": 141,
+        "crop": null,
+        "width": 1200
+      },
+      "prompt": null,
+      "usd": 0.0,
+      "job_id": null,
+      "derived_from": "hero",
+      "approved": false
+    },
+    "hero_0015": {
+      "kind": "still",
+      "path": "site/still/hero_0015.webp",
+      "bytes": 36704,
+      "at": "2026-09-04T15:02:43Z",
+      "provider": null,
+      "model": null,
+      "params": {
+        "section": "hero",
+        "frame": 15,
+        "crop": "0.36,0.05,0.28,0.45",
+        "width": 900
+      },
+      "prompt": null,
+      "usd": 0.0,
+      "job_id": null,
+      "derived_from": "hero",
+      "approved": false
     }
   },
   "jobs": {},
@@ -163,7 +239,25 @@
         }
       },
       "poster": "poster/hero.jpg",
-      "sliced_at": "2026-09-04T14:20:43Z"
+      "sliced_at": "2026-09-04T14:20:43Z",
+      "contact": {
+        "path": "build/contact/hero.jpg",
+        "cells": [
+          1,
+          15,
+          29,
+          43,
+          57,
+          71,
+          85,
+          99,
+          113,
+          127,
+          141,
+          155
+        ],
+        "at": "2026-09-04T15:02:13Z"
+      }
     }
   }
 }

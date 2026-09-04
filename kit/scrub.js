@@ -230,13 +230,27 @@
     s.dirty = true; // resizing clears the backing store
   }
 
-  function drawCover(s, img) {
+  // fit: "cover" (default) fills the stage and crops whichever axis is
+  // relatively smaller — on a wide, short viewport that measured a 16% vertical
+  // crop, taking the top and bottom off the subject.
+  //
+  // fit: "contain" never crops. It letterboxes instead, filling the surround
+  // with the plate colour, which is invisible when the clip has a plain ground
+  // (a studio cyclorama, a flat field) and is the right choice there. The fill
+  // is required, not cosmetic: the context is alpha:false, so anything not
+  // drawn stays opaque black.
+  function drawFrame(s, img) {
     var cw = s.cssW, ch = s.cssH;
     var iw = img.naturalWidth || img.width;
     var ih = img.naturalHeight || img.height;
     if (!iw || !ih) return;
-    var scale = Math.max(cw / iw, ch / ih);
+    var contain = s.cfg.fit === "contain";
+    var scale = contain ? Math.min(cw / iw, ch / ih) : Math.max(cw / iw, ch / ih);
     var w = iw * scale, h = ih * scale;
+    if (contain) {
+      s.ctx.fillStyle = s.plate || "#000";
+      s.ctx.fillRect(0, 0, cw, ch);
+    }
     s.ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
   }
 
@@ -257,7 +271,7 @@
     // Compare the *resolved* index: without this a 16-frame gap would redraw
     // identical pixels sixteen times.
     if (resolved === s.paintedIndex && !s.dirty) return true;
-    drawCover(s, s.frames[resolved]);
+    drawFrame(s, s.frames[resolved]);
     s.paintedIndex = resolved;
     s.dirty = false;
     return true;
@@ -480,6 +494,9 @@
       resolveWindows(s);
       s.frames = new Array(s.count);
       if (s.cfg.bg) s.stage.style.backgroundColor = s.cfg.bg;
+      // Letterbox fill for fit:"contain". Falls back to the stage's computed
+      // background, so it matches the brand layer without being restated.
+      s.plate = s.cfg.bg || getComputedStyle(s.stage).backgroundColor || "#000";
       if (hasPin) s.pinned = clamp(pinned, 0, 1);
       // Enables the optional overlapping-copy layout, independently of whether
       // any frame ever arrives — so the page looks intentional while loading.
