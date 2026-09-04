@@ -500,8 +500,11 @@ def resolve_model(config: dict, project_config: dict, op: str,
     if choice in catalog:
         model_id = catalog[choice]
         if not model_id:
+            hint = ("\n  Text-behind-subject needs a cutout, so that direction requires fal.\n"
+                    "  Either switch provider for this one call or drop the cutout layer."
+                    if op == "cutout" else "")
             die(f"{config.get('name', '?')} has no {op} model — "
-                f"see {config.get('catalog_url', 'the provider catalogue')}")
+                f"see {config.get('catalog_url', 'the provider catalogue')}{hint}", code=2)
         return choice, model_id
 
     if cli_model:
@@ -699,9 +702,12 @@ def find_inline_bytes(obj) -> "tuple[bytes, str] | None":
             for key in ("data", "bytesBase64Encoded", "b64_json"):
                 value = node.get(key)
                 if isinstance(value, str) and len(value) > 256:
+                    # Pad: some APIs return base64 without its trailing '='.
                     with contextlib.suppress(ValueError):
-                        raw = base64.b64decode(value, validate=False)
-                        return raw, sniff_mime(raw)
+                        raw = base64.b64decode(value + "=" * (-len(value) % 4),
+                                               validate=False)
+                        if raw:
+                            return raw, sniff_mime(raw)
             queue.extend(node.values())
         elif isinstance(node, list):
             queue.extend(node)
@@ -722,7 +728,14 @@ def job_fingerprint(provider: str, op: str, model_id: str, payload: dict) -> str
 
 # ── fal adapter ──────────────────────────────────────────────────────────────
 
-def fal_submit(config: dict, model_id: str, payload: dict) -> dict:
+def split_data_uri(uri: str) -> "tuple[str, str]":
+    """`data:image/png;base64,AAA` -> ('AAA', 'image/png'). Gemini wants them apart."""
+    header, _, encoded = uri.partition(",")
+    mime = header[5:].split(";")[0] if header.startswith("data:") else "image/png"
+    return encoded, mime
+
+
+def fal_submit(config: dict, op: str, model_id: str, payload: dict) -> dict:
     key = provider_key(config)
     base = config.get("queue_base", "https://queue.fal.run").rstrip("/")
     # retries=0: a POST that times out may already have created a billable job.
@@ -783,9 +796,104 @@ def fal_fetch(config: dict, handle: dict) -> "tuple[bytes, str]":
     die(f"no asset url found anywhere in the response: {json.dumps(body)[:400]}", code=3)
 
 
+# ── gemini adapter ───────────────────────────────────────────────────────────
+#
+# UNVERIFIED. These call shapes have never been exercised against the live API.
+# Gemini uses long-running *operations* rather than fal's queue, returns image
+# bytes inline rather than by URL, and needs the API key appended to the video
+# download URI — so every printed URL goes through redact() first.
+
+def _gemini_url(config: dict, path: str) -> str:
+    base = config.get("api_base", "").rstrip("/")
+    return f"{base}/{path.lstrip('/')}?key={provider_key(config)}"
+
+
+def gemini_submit(config: dict, op: str, model_id: str, payload: dict) -> dict:
+    method = (config.get("methods") or {}).get(op)
+    if not method:
+        die(f"providers/gemini.json has no method for '{op}'", code=2)
+
+    if method == "generateContent":
+        body = {
+            "contents": [{"parts": [{"text": payload.get("prompt", "")}]}],
+            "generationConfig": {"responseModalities": ["IMAGE"]},
+        }
+        if payload.get("aspectRatio"):
+            body["generationConfig"]["imageConfig"] = {"aspectRatio": payload["aspectRatio"]}
+    else:
+        instance: dict = {"prompt": payload.get("prompt", "")}
+        for wire, target in (("image", "image"), ("lastFrame", "lastFrame")):
+            if payload.get(wire):
+                encoded, mime = split_data_uri(payload[wire])
+                instance[target] = {"bytesBase64Encoded": encoded, "mimeType": mime}
+        parameters = {k: payload[k] for k in ("durationSeconds", "aspectRatio", "resolution")
+                      if payload.get(k) is not None}
+        body = {"instances": [instance], "parameters": parameters}
+
+    status, response = http_json(_gemini_url(config, f"models/{model_id}:{method}"),
+                                 method="POST", payload=body, retries=0)
+
+    if status == 404:
+        die(f"Google does not know the model '{model_id}'.\n"
+            f"  Model ids drift — Veo 3 and Veo 2 were retired on 30 June 2026.\n"
+            f"  Edit providers/gemini.json; do not guess a replacement.\n"
+            f"  Catalogue: {config.get('catalog_url')}", code=3)
+    if status in (401, 403):
+        die(f"{config.get('key_env')} was rejected ({status}). "
+            f"Check it at {config.get('key_url')}", code=3)
+    if status >= 400 or not isinstance(response, dict):
+        die(f"Gemini refused the request ({status}): {json.dumps(response)[:400]}", code=3)
+
+    # generateContent answers immediately; predictLongRunning hands back an operation.
+    if method == "generateContent":
+        return {"inline": response, "request_id": None}
+    name = response.get("name")
+    if not name:
+        die(f"no operation name in the response: {json.dumps(response)[:400]}", code=3)
+    return {"operation": name, "request_id": name.rsplit("/", 1)[-1]}
+
+
+def gemini_poll(config: dict, handle: dict) -> "tuple[str, dict]":
+    if "inline" in handle:
+        return "done", handle["inline"]
+
+    status, body = http_json(_gemini_url(config, handle["operation"]), retries=RETRY_MAX)
+    if status >= 400 or not isinstance(body, dict):
+        return "running", {}
+    if not body.get("done"):
+        return "running", body
+    if body.get("error"):
+        blob = json.dumps(body)
+        return ("rejected" if looks_moderated(config, blob) else "failed"), body
+    return "done", body
+
+
+def gemini_fetch(config: dict, handle: dict) -> "tuple[bytes, str]":
+    _, body = (200, handle["inline"]) if "inline" in handle else \
+        http_json(_gemini_url(config, handle["operation"]), retries=RETRY_MAX)
+
+    if looks_moderated(config, json.dumps(body)):
+        return b"", "rejected"
+
+    inline = find_inline_bytes(body)
+    if inline:
+        return inline
+
+    url = find_asset_url(body)
+    if url:
+        # The result URI needs the API key as a query parameter to download.
+        signed = f"{url}{'&' if '?' in url else '?'}key={provider_key(config)}"
+        _, _, raw = http_request(signed, timeout=DOWNLOAD_TIMEOUT, retries=RETRY_MAX)
+        return raw, sniff_mime(raw)
+
+    die(f"no image bytes or asset url in the response: {json.dumps(body)[:400]}", code=3)
+
+
 ADAPTERS = {
     "fal": {"submit": fal_submit, "poll": fal_poll, "fetch": fal_fetch,
             "interval": POLL_INTERVAL},
+    "gemini": {"submit": gemini_submit, "poll": gemini_poll, "fetch": gemini_fetch,
+               "interval": 10.0},
 }
 
 
@@ -1198,7 +1306,7 @@ def run_generation(project: str, op: str, *, out_name: str, params: dict,
         handle = existing["handle"]
     else:
         say(f"  {mark('dot')} submitting…")
-        handle = adapter["submit"](config, model_id, payload)
+        handle = adapter["submit"](config, op, model_id, payload)
         # Recorded BEFORE the first poll. If this process dies mid-poll the job
         # keeps running and is still billed; without this record a re-run would
         # submit a second one and pay twice.

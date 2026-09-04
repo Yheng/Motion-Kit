@@ -6,10 +6,8 @@
   "key_url": "https://aistudio.google.com/apikey",
   "catalog_url": "https://ai.google.dev/gemini-api/docs/models",
   "api_base": "https://generativelanguage.googleapis.com/v1beta",
-
   "verified": false,
   "verified_note": "UNVERIFIED ADAPTER. The call shapes have never been exercised against the live API. Model IDs were checked against the catalogue on 2026-09-04 and two had already drifted from the original design: gemini-3-pro-image-preview -> gemini-3-pro-image, and veo-3.1-fast-generate-preview does not exist (there is no 'fast' tier; the cheap tier is 'lite'). Expect the first real run to find something. Fix it here, not in Python.",
-
   "models": {
     "image": "gemini-3-pro-image",
     "image_cheap": "gemini-3.1-flash-image",
@@ -17,7 +15,11 @@
     "video_quality": "veo-3.1-generate-preview",
     "cutout": null
   },
-
+  "methods": {
+    "image": "generateContent",
+    "video": "predictLongRunning",
+    "cutout": null
+  },
   "fields": {
     "image": {
       "prompt": "prompt",
@@ -34,22 +36,28 @@
     },
     "cutout": null
   },
-
-  "moderation_patterns": ["safety", "blocked", "prohibited", "policy", "recitation"],
-
+  "moderation_patterns": [
+    "safety",
+    "blocked",
+    "prohibited",
+    "policy",
+    "recitation"
+  ],
   "limits": {
     "max_seconds": 8,
-    "duration_steps": [4, 6, 8],
+    "duration_steps": [
+      4,
+      6,
+      8
+    ],
     "note": "Veo emits 4, 6 or 8 second clips. --duration snaps to the nearest step rather than being passed through."
   },
-
   "pricing": {
     "image_usd": 0.134,
     "video_usd_per_second": 0.15,
     "cutout_usd": 0.0,
     "note": "UNVERIFIED. Published Veo 3.1 figures range $0.15-$0.75/s depending on tier, resolution, audio, and Vertex vs Developer API. Check https://ai.google.dev/gemini-api/docs/pricing and .../docs/models before budgeting."
   },
-
   "notices": [
     "Google applies SynthID watermarking to generated output. It is invisible, but it is a consideration for client work.",
     "Veo 3.1 exposes a last-frame parameter, so --loop is supported here. Developer reports suggest it is not available on every tier; the CLI degrades to --trim-end if it is rejected.",
