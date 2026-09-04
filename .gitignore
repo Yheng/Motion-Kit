@@ -1,0 +1,23 @@
+# secrets — never commit
+.env
+
+# auto-downloaded static ffmpeg build
+.ffmpeg/
+
+# source stills and mp4s: expensive, regenerable only by paying again, and far
+# too big for git. Kept on disk so frames can be re-sliced for free.
+out/*/build/
+
+# generated deliverables — re-sliced from build/ at no cost
+out/*/site/frames/
+out/*/site/poster/
+out/*/site/cutout/
+
+# transient
+out/*/.lock
+*.tmp
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
