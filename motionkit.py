@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fnmatch
 import json
 import os
 import platform
@@ -474,6 +475,98 @@ def provider_key(config: dict) -> "str | None":
     return value or None
 
 
+def redact(secret: str) -> str:
+    """Never print a key in full — and Gemini puts one in a download URL."""
+    if not secret:
+        return ""
+    return f"{secret[:4]}…{secret[-4:]}" if len(secret) > 12 else "set"
+
+
+def resolve_model(config: dict, project_config: dict, op: str,
+                  cli_model: "str | None" = None) -> "tuple[str, str]":
+    """Pick a model for `op`: --model, then project.json, then the provider default.
+
+    A --model value naming a catalogue key is resolved through the JSON; anything
+    else is passed through as a literal id with a warning, because it bypasses
+    the pricing table. Model ids themselves never appear in this file.
+    """
+    catalog = config.get("models") or {}
+    override = (project_config.get("models") or {}).get(op)
+    choice = cli_model or override or op
+
+    if choice in catalog:
+        model_id = catalog[choice]
+        if not model_id:
+            die(f"{config.get('name', '?')} has no {op} model — "
+                f"see {config.get('catalog_url', 'the provider catalogue')}")
+        return choice, model_id
+
+    if cli_model:
+        warn(f"'{cli_model}' is not a key in {config.get('name', '?')}'s catalogue; "
+             f"using it as a literal model id, which bypasses the pricing table")
+        return cli_model, cli_model
+
+    die(f"no '{op}' model configured for {config.get('name', '?')}")
+
+
+def op_fields(config: dict, op: str, model_id: str) -> "dict | None":
+    """Logical field name -> wire field name, for one operation and model.
+
+    None means the provider cannot do this operation at all. Per-model overrides
+    are matched by glob against the model id, so a model whose parameter differs
+    — Kling wants start_image_url where Seedance wants image_url — is a config
+    edit rather than a Python change.
+    """
+    fields = (config.get("fields") or {}).get(op)
+    if fields is None:
+        return None
+    merged = dict(fields)
+    for pattern, override in (config.get("model_fields") or {}).items():
+        if fnmatch.fnmatch(model_id, pattern):
+            merged.update(override.get(op) or {})
+    return merged
+
+
+def estimate_usd(config: dict, op: str, model_key: str,
+                 params: "dict | None" = None) -> "tuple[float, str]":
+    """Estimated cost plus the arithmetic behind it, printed before every paid call.
+
+    Always an estimate from local JSON, never an invoice — provider rates drift.
+    """
+    pricing = dict(config.get("pricing") or {})
+    pricing.update((pricing.get("by_model_key") or {}).get(model_key) or {})
+    params = params or {}
+
+    if op == "image":
+        usd = float(pricing.get("image_usd") or 0.0)
+        return round(usd, 4), f"1 image x ${usd:.4f}"
+    if op == "cutout":
+        usd = float(pricing.get("cutout_usd") or 0.0)
+        return round(usd, 4), f"1 cutout x ${usd:.4f}"
+    if op == "video":
+        rate = float(pricing.get("video_usd_per_second") or 0.0)
+        seconds = float(params.get("duration") or 0.0)
+        return round(rate * seconds, 4), f"{seconds:g}s x ${rate:.4f}/s"
+    return 0.0, "no charge"
+
+
+def clamp_duration(config: dict, seconds: float) -> "tuple[float, bool]":
+    """Clamp to the provider's ceiling and snap to its allowed steps, warning if changed."""
+    limits = config.get("limits") or {}
+    original = seconds
+    ceiling = limits.get("max_seconds")
+    if ceiling and seconds > float(ceiling):
+        seconds = float(ceiling)
+    steps = limits.get("duration_steps")
+    if steps:
+        seconds = min((float(s) for s in steps), key=lambda s: (abs(s - seconds), s))
+    changed = abs(seconds - original) > 1e-9
+    if changed:
+        warn(f"{config.get('name', '?')} accepts {limits.get('duration_steps') or f'up to {ceiling}s'}"
+             f" — {original:g}s becomes {seconds:g}s")
+    return seconds, changed
+
+
 # ── commands ─────────────────────────────────────────────────────────────────
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -499,18 +592,25 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     providers = load_providers()
     if not providers:
         say(f"  {mark('bad')} no provider configs in providers/")
+    usable = []
     for name, config in sorted(providers.items()):
         title = config.get("name", name)
         if not config.get("generation", True):
             say(f"  {mark('ok')} {name:<8} {title} — no key needed, bring your own footage")
+            usable.append(name)
             continue
         env_name = config.get("key_env", "?")
-        if provider_key(config):
-            say(f"  {mark('ok')} {name:<8} {title} — {env_name} is set")
+        key = provider_key(config)
+        if key:
+            say(f"  {mark('ok')} {name:<8} {title} — {env_name} set ({redact(key)})")
+            usable.append(name)
         else:
             say(f"  {mark('bad')} {name:<8} {title} — {env_name} missing")
             if config.get("key_url"):
                 say(f"              get one at {config['key_url']}")
+        if config.get("verified") is False:
+            say(f"              {mark('warn')} unverified adapter — see verified_note "
+                f"in providers/{name}.json")
 
     rule("projects")
     projects = sorted(p for p in OUT_DIR.glob("*") if p.is_dir()) if OUT_DIR.exists() else []
@@ -525,7 +625,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if not (ffmpeg and ffprobe):
         say("ffmpeg is required. Re-run doctor to retry the download, or install it yourself.")
         return 1
-    say("Ready. Next: python motionkit.py init <project>")
+    if usable:
+        say(f"Ready. Build with: {', '.join(usable)}")
+    say("Next: python motionkit.py init <project>")
     return 0
 
 
@@ -597,7 +699,10 @@ def cmd_init(args: argparse.Namespace) -> int:
         "name": name,
         "provider": args.provider,
         "created": config.get("created") or now_iso(),
-        "models": dict(provider_config.get("models", {})),
+        # Per-operation overrides by catalogue *key*, not model id. null means
+        # "use the provider default", so pinning a tier for one project never
+        # edits the shared provider file and no model id lands in project.json.
+        "models": config.get("models") or {"image": None, "video": None, "cutout": None},
         "defaults": config.get("defaults") or dict(DEFAULTS),
     })
     write_json(directory / "project.json", config)

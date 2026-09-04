@@ -1,0 +1,19 @@
+{
+  "name": "bring your own footage",
+  "kind": "byo",
+  "generation": false,
+
+  "verified": true,
+  "note": "A first-class path, not a fallback. Any clip with continuous camera motion works: Blender or C4D turntables, drone footage, existing client product video, After Effects renders. An agency with real footage gets a better page than any generative model produces, and this path makes the tool independent of any provider's pricing or availability.",
+
+  "models": { "image": null, "video": null, "cutout": null },
+  "fields": { "image": null, "video": null, "cutout": null },
+  "limits": {},
+
+  "pricing": {
+    "image_usd": 0.0,
+    "video_usd_per_second": 0.0,
+    "cutout_usd": 0.0,
+    "note": "Everything downstream of build/ is free: frame slicing, assembly and serving cost nothing."
+  }
+}

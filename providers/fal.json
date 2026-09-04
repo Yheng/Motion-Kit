@@ -1,0 +1,59 @@
+{
+  "name": "fal.ai",
+  "kind": "fal",
+  "generation": true,
+  "key_env": "FAL_KEY",
+  "key_url": "https://fal.ai/dashboard/keys",
+  "catalog_url": "https://fal.ai/models",
+  "queue_base": "https://queue.fal.run",
+
+  "verified": "Endpoint slug, per-second price, 15s cap and the video field names were checked against fal.ai on 2026-09-04. The image and cutout field names were NOT checked - correct them here, not in Python, if a call is rejected for an unknown field.",
+
+  "models": {
+    "image": "fal-ai/nano-banana-pro",
+    "image_cheap": "fal-ai/nano-banana-2",
+    "video": "bytedance/seedance-2.0/fast/image-to-video",
+    "video_quality": "bytedance/seedance-2.0/image-to-video",
+    "video_cheap": "fal-ai/bytedance/seedance/v1/lite/image-to-video",
+    "cutout": "fal-ai/birefnet/v2"
+  },
+
+  "fields": {
+    "image": {
+      "prompt": "prompt",
+      "aspect": "aspect_ratio",
+      "resolution": null
+    },
+    "video": {
+      "prompt": "prompt",
+      "start_image": "image_url",
+      "end_image": "end_image_url",
+      "duration": "duration",
+      "resolution": "resolution",
+      "aspect": "aspect_ratio"
+    },
+    "cutout": {
+      "start_image": "image_url"
+    }
+  },
+
+  "model_fields": {
+    "*kling*": {
+      "video": { "start_image": "start_image_url" }
+    }
+  },
+
+  "moderation_patterns": ["moderat", "safety", "nsfw", "content polic", "blocked", "rejected"],
+
+  "limits": { "max_seconds": 15 },
+
+  "pricing": {
+    "image_usd": 0.15,
+    "video_usd_per_second": 0.2419,
+    "cutout_usd": 0.02,
+    "by_model_key": {
+      "video_quality": { "video_usd_per_second": 0.3024 }
+    },
+    "note": "Seedance 2.0 Fast at 720p; $0.2419/s and the 15s cap confirmed 2026-09-04. Standard tier ~$0.3024/s. Rates drift - verify at https://fal.ai/pricing before budgeting."
+  }
+}
