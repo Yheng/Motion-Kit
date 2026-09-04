@@ -4,8 +4,8 @@ Written during intake (Phase 1).
 
 ## What this is
 
-A landing page for **Clinica Aesthetica**, an aesthetic medicine practice in
-**Davao City, Philippines**, carrying both the clinic and its practitioner. **Dr. Isel Bayuga** is a real, named
+A landing page for **Clinica Aesthetico**, an aesthetic medicine practice in
+**Davao City, Philippines**, established 2009, carrying both the clinic and its practitioner. **Dr. Isel Bayuga** is a real, named
 medical professional working in advanced non-invasive skin and facial
 rejuvenation. Her standing is the reason to trust the clinic, so the page has to
 do both jobs: establish her authority, then convert it into an enquiry.
@@ -64,6 +64,14 @@ practitioner band, hero share chapter at 200vh.
 Chosen over the contrarian "Plain Air" for coherence with the clinic's existing
 imagery. It also has the best light match to her photograph, which is the real
 compositing constraint: a photograph cannot be relit.
+
+## The clinic's name
+
+**Clinica Aesthetico**, not "Aesthetica". The official logo supplied by the
+client reads CLINICA AESTHETICO and carries the date 2009; that artifact is
+authoritative over anything said in conversation, so the page follows it. The
+project directory is still `out/aesthetica/` — that is only a slug and renaming
+it would break the paths recorded in state.json.
 
 ## Notes
 
