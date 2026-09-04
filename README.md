@@ -79,6 +79,9 @@ tool independent of any provider's pricing or availability.
 | `video --project --prompt --image --out [--duration --loop]` | animate a still into `build/` |
 | `cutout --project --image` | background removal to a PNG with alpha |
 | `frames --project --name [--clip \| --placeholder]` | slice to frames, write the poster |
+| `contact --project --name` | tile frames into one sheet so you can see the clip |
+| `pluck --project --name --frames 45,90` | copy frames out as page imagery, free |
+| `check --project` | QA gate; exits non-zero on failure |
 | `serve --project [--port]` | serve `site/` locally |
 | `cost --project` | itemised spend log and total |
 
@@ -111,6 +114,7 @@ appended to `state.json` so `cost --project <p>` can itemise it.
 | Optional 9:16 mobile pair | +$2.90 |
 | Dry run (`--placeholder`) | $0 |
 | Bring your own footage | $0 |
+| Every supporting image on the page (`pluck`) | $0 |
 
 > **Published prices go stale.** The figures above and the rates in
 > `providers/*.json` are estimates from local config, not an invoice. Each
@@ -139,6 +143,12 @@ The page is complete and sellable with zero frames loaded: under
 `prefers-reduced-motion` or Save-Data the engine loads nothing, the stage
 unsticks, and every word of copy remains. That is a structural property of how
 the CSS and JS are split, not something you have to remember to test.
+
+**One caveat on self-containment:** a direction may load typefaces from a font
+CDN, which is the one off-origin request the output makes. Google Fonts
+discloses visitor IPs to a third party, so for EU client work either pick a
+direction that uses system stacks or vendor the pairing into `site/fonts/`.
+Everything else — frames, poster, stills, styles, engine — is same-origin.
 
 ## Your responsibilities
 

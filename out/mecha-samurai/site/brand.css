@@ -1,139 +1,174 @@
 /*
  * mecha-samurai — brand layer. Direction 3, "Catalogue".
  *
- * Museum-white cyclorama, clinical studio light, the machine as a catalogued
- * industrial object. Bright and precise, deliberately arguing against the
- * neon-and-rain reading of "cyberpunk mecha".
+ * THE SHOT: museum-white cyclorama, clinical studio light, the machine as a
+ * catalogued industrial object. Deliberately arguing against the neon-and-rain
+ * reading of "cyberpunk mecha".
  *
- * Loads after styles.css and is unlayered, so it beats @layer scaffold without
- * !important. It sets colour, type and texture only — never geometry on
- * .stage, .stage__*, .scrub or .nav.
+ * THE PAGE (derived from the clinical/catalogue register):
+ *   Ground rhythm  single-anchor — #record inverts to graphite, #systems bleeds
+ *   Scale break    quiet 3x, held below the hero; peak is #record's statement
+ *   Accent licence machine red on cta, numeral, mark; blueprint on rule, link
+ *   Imagery        three, all free: frames 43, 71 and a cropped 15
+ *   Hero share     chapter, 200vh (5 copy blocks need the room)
+ *
+ * Loads after styles.css and is unlayered, so it wins without !important. It
+ * sets colour, type and texture only — never geometry on .stage, .stage__*,
+ * .scrub or .nav.
  */
 
+/* ── the eight role declarations ─────────────────────────────────────────── */
 :root {
-  --cyclorama: #F4F4F2;   /* the ground the whole page sits on */
-  --graphite:  #1A1A1A;   /* body and display text */
-  --blueprint: #2B4C8C;   /* links, technical accents */
-  --machine:   #C8102E;   /* one red, used sparingly and only for action */
-  --rule:      #C9C9C6;   /* hairlines and table rules */
+  --cyclorama: #f4f4f2;
+  --graphite:  #1a1a1a;
+  --blueprint: #2b4c8c;
+  --machine:   #c8102e;
 
-  --fg: var(--graphite);
-  --bg: var(--cyclorama);
+  --ground-1: var(--cyclorama);  --ink-1: var(--graphite);
+  --rule-1:   #c9c9c6;           --muted-1: #6b6b69;
 
-  --font-display: "Helvetica Neue", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-  --font-body: var(--font-display);
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  --ground-2: var(--graphite);   --ink-2: var(--cyclorama);
+  --rule-2:   #3a3a38;           --muted-2: #9a9a97;
+
+  /* The accent as a whole ground, used exactly once, at the close. */
+  --field-bg: var(--blueprint);  --field-fg: #ffffff;
+
+  /* Hero share: chapter. 200vh, down from the 300vh that made the hero ~60% of
+     the document. Not punctuation (150vh): that leaves roughly 365px of scroll,
+     and five copy blocks cannot be read in 365px. The beat count sets the floor
+     on the track length, which is a constraint worth stating. */
+  --track-h: 200vh;
+}
+@media (max-width: 767px) { :root { --track-h: 180vh; } }
+
+/* ── type ────────────────────────────────────────────────────────────────────
+ * IBM Plex, loaded from the CDN in index.html. A pairing with roles, not two
+ * family names: Condensed carries display, Sans carries text, Mono carries
+ * data — and Mono does real work here (spec labels, stat figures, eyebrows,
+ * captions) rather than decorating a few tiny labels.
+ *
+ * Plex was drawn for a technology company's technical communication, which is
+ * exactly this page's register.
+ */
+:root {
+  --font-display: "IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  /* Scale break, quiet ~3x — and it HOLDS below the hero. The old page was 9x
+     in the stage and 2.5rem everywhere else, which is what read as flat. */
+  --size-statement: clamp(2.25rem, 5.5vw, 4.25rem);
+  --size-stat: clamp(2.5rem, 5vw, 4rem);
 }
 
 body {
-  background: var(--cyclorama);
-  color: var(--graphite);
+  background: var(--ground-1);
+  color: var(--ink-1);
   font-family: var(--font-body);
-  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.0625rem);
-  line-height: 1.55;
+  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.125rem);
+  line-height: 1.6;
   font-weight: 400;
 }
 
-/* One family, carried by weight and width contrast rather than a second voice. */
-h1, h2, h3, .display {
+h1, h2, h3, .display, .statement {
   font-family: var(--font-display);
   font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.025em;
+  line-height: 1.03;
+  letter-spacing: -0.02em;
 }
+.display { font-size: clamp(2.25rem, 4.6vw, 4.5rem); text-transform: uppercase; }
+h2 { font-size: clamp(1.75rem, 3.2vw, 2.75rem); }
+h3 { font-family: var(--font-body); font-size: 1.0625rem; font-weight: 600;
+     letter-spacing: 0; }
 
-.display { font-size: clamp(2.75rem, 8vw, 7rem); text-transform: uppercase; }
-h2 { font-size: clamp(1.6rem, 3vw, 2.5rem); }
-h3 { font-size: 1rem; font-weight: 600; letter-spacing: 0; }
-
-.eyebrow, .scroll-hint {
-  font-family: var(--font-mono);
+.eyebrow, .scroll-hint, .stat__label, .figure figcaption, .faq > dt, .logos {
+  font-family: var(--font-data);
   font-size: 0.75rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 400;
+  color: var(--band-muted);
 }
 
-/* THE DIRECTION-SPECIFIC OVERRIDE THAT MATTERS.
-   The kit default assumes a dark plate behind the hero and sets light overlay
-   text. This cyclorama is near-white, so hero copy is graphite like the rest of
-   the page. Getting this wrong is white-on-white and an unreadable hero. */
+.lede { font-size: clamp(1.05rem, 1.4vw, 1.25rem); }
+.band p { max-width: var(--measure); }
+
+/* ── the hero plate ──────────────────────────────────────────────────────────
+ * The plate is a near-white cyclorama, so hero copy is graphite — set to suit
+ * the PLATE, not the page. Light copy here would be invisible.
+ *
+ * The scrim is therefore light too: a left-to-right wash of the ground colour,
+ * so the copy column holds contrast across all 179 frames rather than only the
+ * ones that happened to be behind it when I looked.
+ */
+.stage { background: var(--cyclorama); }   /* letterbox fill for fit:"contain" */
 .stage__overlay { color: var(--graphite); }
+.stage__overlay { --scrim: linear-gradient(90deg,
+    rgb(244 244 242 / 92%) 0%, rgb(244 244 242 / 72%) 34%, rgb(244 244 242 / 0%) 62%); }
 .stage__overlay .eyebrow { color: var(--blueprint); }
-.stage__overlay .scroll-hint { color: #7A7A78; }
+.stage__overlay .scroll-hint { color: #8a8a87; }
+.beat p { max-width: 32ch; }
 
 .nav {
   background: color-mix(in srgb, var(--cyclorama) 88%, transparent);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.875rem;
+  border-bottom: 1px solid var(--rule-1);
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
 }
-.nav__logo, .footer__logo {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.nav__links a { text-decoration: none; }
+.nav__logo, .footer__logo { text-transform: uppercase; letter-spacing: 0.14em; }
 .nav__links a:hover { color: var(--blueprint); }
 
-.lede { font-size: clamp(1.05rem, 1.5vw, 1.3rem); color: #3C3C3A; }
-
+/* ── accent licence: cta, numeral, mark (red) · rule, link (blueprint) ────── */
 .btn {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-color: var(--graphite);
-  border-radius: 0;               /* nothing on this page is rounded */
+  font-family: var(--font-data);
+  font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
+  border-radius: 0;                       /* nothing on this page is rounded */
+  border-color: currentColor;
+  padding: 0.9em 1.5em;
 }
 .btn:hover { background: var(--machine); border-color: var(--machine); color: #fff; }
-.nav__cta { border-color: var(--machine); color: var(--machine); }
+.nav__cta { color: var(--machine); border-color: var(--machine); }
+.stat__figure { font-family: var(--font-data); color: var(--machine); font-weight: 500; }
+.band--invert .stat__figure { color: #ff5a76; }   /* red lifted for dark ground */
+mark { background: none; color: var(--machine); }
+a:not(.btn):not(.nav__logo):not(.footer__logo) { color: var(--blueprint); }
+.band--invert a:not(.btn) { color: #93b4ea; }
+.band--field a:not(.btn), .band--field .btn { color: #fff; border-color: #fff; }
+.band--field .btn:hover { background: #fff; color: var(--blueprint); }
 
-.band + .band { border-top: 1px solid var(--rule); }
+.band + .band { border-top: 1px solid var(--band-rule); }
 
-/* Spec sheet: tabular figures are the whole point of a catalogue page. */
+/* ── the peak ────────────────────────────────────────────────────────────── */
+.statement { font-weight: 700; }
+.statement cite { font-family: var(--font-data); letter-spacing: 0.1em;
+                  text-transform: uppercase; }
+
+/* ── spec sheet: tabular figures are the point of a catalogue page ───────── */
 .faq { font-variant-numeric: tabular-nums; }
-.faq > dt {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #6B6B69;
-  border-top: 1px solid var(--rule);
-  padding-top: 0.6rem;
-}
-.faq > dd { margin: 0.15rem 0 1.1rem; font-size: 1.0625rem; }
+.faq > dt { border-top: 1px solid var(--band-rule); padding-top: 0.6rem; }
+.faq > dd { margin: 0.2rem 0 1.2rem; font-size: 1.0625rem;
+            font-variant-numeric: tabular-nums; }
 
-.steps > li::before {
-  font-family: var(--font-mono);
-  color: var(--blueprint);
-}
-.quote blockquote p { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
-.quote figcaption { font-family: var(--font-mono); font-size: 0.75rem;
-                    letter-spacing: 0.12em; text-transform: uppercase; color: #6B6B69; }
-.logos { font-family: var(--font-mono); font-size: 0.75rem;
-         letter-spacing: 0.12em; text-transform: uppercase; color: #6B6B69; }
+.figure img { border: 1px solid var(--band-rule); }
+.footer { color: var(--band-muted); font-size: 0.875rem; }
+.footer__legal { font-size: 0.8125rem; }
 
-.footer { border-top: 1px solid var(--rule); color: #6B6B69; font-size: 0.875rem; }
-a { color: var(--blueprint); }
+/* The opening block is the only beat allowed a full measure; the rest are
+   single sentences held to a narrow column so they read at scroll speed. */
+.beat--open .lede { max-width: 44ch; }
 
-/* ── hero copy column ─────────────────────────────────────────────────────
- * The subject is centred and turning, so the headline cannot pass behind it
- * (a static cutout would diverge from a rotating subject within a few frames).
- * Instead the copy is held in a left column over bare cyclorama, where
- * graphite-on-near-white reads at full contrast. Discovered in browser QA:
- * at full width the H1 crossed the mech's mid-grey body and became unreadable.
+/* ── the copy column ─────────────────────────────────────────────────────────
+ * The subject is centred and turning, so the copy is held to a left column over
+ * the scrim rather than running the full stage width. Measured before this:
+ * the H1 spanned 1767px of an 1895px stage and crossed the mech's arm.
  *
- * Width and type size only — no position, inset, z-index or object-fit, per
- * the scaffold contract.
+ * Width only — no position, inset or z-index, per the scaffold contract.
  */
-.stage__overlay > * { max-width: min(48ch, 46%); }
-.stage__overlay .display { font-size: clamp(2.25rem, 4.4vw, 4.25rem); }
-.stage__overlay .lede { font-size: clamp(1rem, 1.25vw, 1.15rem); }
+.stage__overlay .beat { max-width: min(46ch, 46%); }
 
-@media (max-width: 900px) {
-  /* Too narrow for a side-by-side column; let the copy use the full width and
-     sit over the lower part of the frame. */
-  .stage__overlay > * { max-width: 100%; }
-}
+/* The poster must use the SAME fit as the canvas, or the image jumps at the
+   moment the canvas fades in over it. fit:"contain" is set in SCRUB_SECTIONS;
+   this is its CSS half. */
+.stage__poster { object-fit: contain; }

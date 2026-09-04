@@ -350,7 +350,20 @@ python motionkit.py serve --project <p>
    disk, and ffmpeg's fps filter rounds. A count one too high makes the engine
    fetch a frame that does not exist, and `img.onerror` resolves by design, so
    it fails **silently**.
-2. Write the copy from Phase 5 into `site/index.html`.
+2. Write the copy from Phase 5 into `site/index.html`. Beats go in the stage
+   overlay as frame ranges — **desktop frame numbers, the same ones `contact`
+   printed**:
+
+   ```html
+   <div class="beat" data-beat="31 70"><p>One sentence, 8–18 words.</p></div>
+   ```
+
+   The engine converts the range to a scroll window against the desktop count,
+   so the beat means the same moment on mobile even though mobile has roughly
+   half the frames. `data-out` stays for the opening block — that is the hero
+   handing over, not a sentence landing on a pose. Never give hero copy a
+   `data-in` starting at 0: the page loads at exactly progress 0 and the line
+   would be invisible on arrival.
 3. Write the direction from Phase 3 into **`site/brand.css`** — palette, type,
    texture. That is the only design file you edit. `site/styles.css` is
    structural scaffolding and stays untouched; it is layered so `brand.css`

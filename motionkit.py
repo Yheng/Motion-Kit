@@ -1343,16 +1343,22 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     # kit/ is pristine; site/ is the per-project copy. Never edit kit/ per project.
     #
-    # A file already edited for this project is the deliverable — index.html
-    # carries the copy and brand.css carries the direction. Refreshing an
-    # unmodified file picks up engine fixes; overwriting an edited one destroys
-    # the work, so those are preserved and named.
+    # Two classes of file, and the distinction is the spec's own: styles.css and
+    # scrub.js are pristine scaffolding that is never edited per project, so they
+    # ALWAYS refresh and a project picks up engine and layout fixes. index.html
+    # and brand.css carry the copy and the direction — they are the deliverable,
+    # so once they differ they are preserved and named.
+    #
+    # Comparing bytes alone cannot tell "this project edited it" from "the kit
+    # moved on", which is why the pristine set is explicit rather than inferred.
     copied, kept = 0, []
     if KIT_DIR.exists():
         for item in sorted(KIT_DIR.iterdir()):
             target = site / item.name
             if item.is_file():
-                if target.exists() and target.read_bytes() != item.read_bytes():
+                pristine = item.name in ("styles.css", "scrub.js")
+                if (not pristine and target.exists()
+                        and target.read_bytes() != item.read_bytes()):
                     kept.append(item.name)
                     continue
                 shutil.copyfile(item, target)

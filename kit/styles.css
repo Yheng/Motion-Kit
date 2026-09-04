@@ -287,7 +287,14 @@
      once the engine is live, because stacked lines in normal flow read as a
      jumbled pile. Inside a fixed-height sticky box, so it cannot shift layout. */
   .is-scrubbed .stage__overlay--stack { display: grid; }
-  .is-scrubbed .stage__overlay--stack > * { grid-area: 1 / 1; margin-top: 0; }
+  /* align-self:end matters. Stacked items default to stretch, so a one-line
+     beat sitting in a cell sized by the tall opening block renders at the TOP
+     of that cell and collides with the copy it is supposed to replace. Pinning
+     every stacked block to the bottom makes the crossfade read as one line
+     replacing another, which is the whole effect. */
+  .is-scrubbed .stage__overlay--stack > * {
+    grid-area: 1 / 1; margin-top: 0; align-self: end;
+  }
 
   /* ── controls ────────────────────────────────────────────────────────── */
 

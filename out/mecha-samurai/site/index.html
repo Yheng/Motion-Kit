@@ -4,25 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>{{TACHI-07}} — Armoured Combat Exoskeleton | {{Kurogane Dynamics}}</title>
-<meta name="description" content="{{TACHI-07}} is a samurai-class armoured combat exoskeleton built to hold ground in dense cities. Plate over a hydraulic frame, serviceable in the field.">
+<title>TACHI-07 — Armoured Combat Exoskeleton | Kurogane Dynamics</title>
+<meta name="description" content="TACHI-07 is a samurai-class armoured combat exoskeleton built to hold ground in dense cities. Sectional plate over a hydraulic frame, serviceable in the field.">
 <link rel="canonical" href="https://example.com/">
 <meta name="robots" content="index,follow,max-image-preview:large">
 
-<!-- The poster is the LCP element. This preload must match the <img> below
-     exactly, or the browser downloads the poster twice. -->
 <link rel="preload" as="image" href="poster/hero.webp" type="image/webp" fetchpriority="high">
 
-<!-- Order matters: scaffold first, brand second. brand.css is unlayered and so
-     wins over styles.css without !important. Every asset is same-origin, so
-     there is deliberately no preconnect. -->
+<!-- IBM Plex: Condensed for display, Sans for text, Mono for data. A late swap
+     on the H1 is the likeliest source of layout shift here. Google Fonts
+     discloses visitor IPs; for EU client work run `fonts --self-host`. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@700&display=swap">
+
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="brand.css">
 
 <script src="scrub.js" defer></script>
 
 <!-- ── PASTE FROM: python motionkit.py frames --project <p> --name <section> ──
-     The counts are files measured on disk, not the numbers requested. -->
+     Counts are files measured on disk. fit:"contain" because the plate is a
+     plain cyclorama: cover-fit cropped 16% vertically on a wide viewport and
+     took the helm and feet off the subject. Letterboxing is invisible here. -->
 <script>
 window.SCRUB_SECTIONS = [
   {
@@ -30,7 +34,7 @@ window.SCRUB_SECTIONS = [
     name: "hero",
     frameCount: { desktop: 179, mobile: 89 },
     format: "webp",
-    bg: "#F4F4F2",
+    fit: "contain",
     framePath: (n, v) =>
       `frames/hero/${v}/frame_${String(n).padStart(4, "0")}.webp`,
   },
@@ -40,14 +44,14 @@ window.SCRUB_SECTIONS = [
 
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://example.com/">
-<meta property="og:title" content="{{TACHI-07}} — Samurai-Class Armoured Combat Exoskeleton">
-<meta property="og:description" content="Plate over a hydraulic frame, serviceable in the field, one pilot. Built to hold ground in dense cities.">
+<meta property="og:title" content="TACHI-07 — Armoured Combat Exoskeleton">
+<meta property="og:description" content="Sectional plate over a hydraulic frame. Built to hold ground in dense cities, and to be repaired in one.">
 <meta property="og:image" content="https://example.com/poster/hero.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{TACHI-07}} — Samurai-Class Armoured Combat Exoskeleton">
-<meta name="twitter:description" content="Plate over a hydraulic frame, serviceable in the field, one pilot.">
+<meta name="twitter:title" content="TACHI-07 — Armoured Combat Exoskeleton">
+<meta name="twitter:description" content="Sectional plate over a hydraulic frame, serviceable in the field.">
 <meta name="twitter:image" content="https://example.com/poster/hero.jpg">
 
 <script type="application/ld+json">
@@ -55,30 +59,24 @@ window.SCRUB_SECTIONS = [
   "@context": "https://schema.org",
   "@graph": [
     { "@type": "Organization", "@id": "https://example.com/#org",
-      "name": "{{Kurogane Dynamics}}", "url": "https://example.com/" },
+      "name": "Kurogane Dynamics", "url": "https://example.com/" },
     { "@type": "WebSite", "@id": "https://example.com/#site",
-      "url": "https://example.com/", "name": "{{Kurogane Dynamics}}",
+      "url": "https://example.com/", "name": "Kurogane Dynamics",
       "publisher": { "@id": "https://example.com/#org" } },
     { "@type": "WebPage", "@id": "https://example.com/#page",
-      "url": "https://example.com/", "name": "{{TACHI-07}} — Samurai-Class Armoured Combat Exoskeleton",
-      "description": "A samurai-class armoured combat exoskeleton built for held ground in dense cities.",
+      "url": "https://example.com/", "name": "TACHI-07 — Armoured Combat Exoskeleton",
+      "description": "A samurai-class armoured combat exoskeleton built to hold ground in dense cities.",
       "isPartOf": { "@id": "https://example.com/#site" } }
   ]
 }
 </script>
-
-<!-- ANALYTICS SLOT — inactive by design. Nothing loads until you paste a
-     snippet here. Whatever you paste is a third-party request on the critical
-     path, so keep it last in <head> and prefer defer or async.
-<script defer src="https://example.com/analytics.js"></script>
--->
 </head>
 
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="nav">
-  <a class="nav__logo" href="/" aria-label="{{Kurogane Dynamics}} home">{{Kurogane Dynamics}}</a>
+  <a class="nav__logo" href="/" aria-label="Kurogane Dynamics home">Kurogane Dynamics</a>
   <nav class="nav__links" aria-label="Primary">
     <ul>
       <li><a href="#systems">Systems</a></li>
@@ -91,33 +89,50 @@ window.SCRUB_SECTIONS = [
 
 <main id="main">
 
-  <!-- The scroll track. Its height is how far the sequence scrubs over. -->
   <section id="hero" class="scrub">
     <div class="stage">
 
-      <!-- z 1 — the LCP element. Present before any JS runs. Content-identical
-           to frame 1, so the fade to canvas is invisible. -->
       <picture>
         <source srcset="poster/hero.webp" type="image/webp">
         <img class="stage__poster" src="poster/hero.jpg"
              width="1600" height="900" fetchpriority="high" decoding="async"
-             alt="A nine-metre piloted exoskeleton standing at rest on a plain white studio background, its overlapping graphite and off-white armour plates and exposed knee and elbow actuators fully visible.">
+             alt="A piloted exoskeleton standing at rest on a plain white studio background, its overlapping graphite and off-white armour plates and exposed knee and elbow actuators fully visible.">
       </picture>
 
-      <!-- z 10 — decorative. Every word of meaning lives in the DOM below. -->
       <canvas class="stage__canvas" aria-hidden="true"></canvas>
 
-      <!-- z 20 — real, selectable, translatable, indexable copy.
-           No data-in on the hero: the page loads at progress 0, so a line
-           fading in from 0 would be invisible on arrival. It fades out instead,
-           as the turntable takes over. -->
-      <div class="stage__overlay">
-        <p class="eyebrow" data-out=".30 .42">{{Kurogane Dynamics}} — Samurai class</p>
-        <h1 class="display" data-out=".40 .54">{{TACHI-07}}. Armoured combat exoskeleton.</h1>
-        <p class="lede" data-out=".34 .46">Nine metres of articulated plate over a hydraulic frame.
-          Built to hold ground in dense cities, and to be repaired in one.</p>
-        <p><a class="btn" href="#specification" data-out=".46 .60">See the specification</a></p>
-        <p class="scroll-hint" data-out="0 .06" aria-hidden="true">Scroll to turn</p>
+      <!-- Beats are desktop frame numbers, read off the contact sheet: front at
+           1, right profile at 43, the back at 71, left profile at 99, returning
+           to front by 155. Each names something visible in its range and not the
+           one before, and none uses a connective, because scrubbing runs
+           backwards and the sentences must survive being read in reverse. -->
+      <div class="stage__overlay stage__overlay--stack">
+
+        <div class="beat beat--open" data-out=".10 .20">
+          <p class="eyebrow">Kurogane Dynamics — Samurai class</p>
+          <h1 class="display">TACHI-07. Armoured combat exoskeleton.</h1>
+          <p class="lede">Nine metres of sectional plate over a hydraulic frame.
+            Built to hold ground in dense cities, and to be repaired in one.</p>
+          <p><a class="btn" href="#specification">See the specification</a></p>
+          <p class="scroll-hint" aria-hidden="true">Scroll to turn</p>
+        </div>
+
+        <div class="beat" data-beat="40 75">
+          <p>The shoulder guard is eleven overlapping plates. You can count them from here.</p>
+        </div>
+
+        <div class="beat" data-beat="76 112">
+          <p>Nothing on the back is smooth. Every panel on it is a hatch.</p>
+        </div>
+
+        <div class="beat" data-beat="113 150">
+          <p>In profile the knee and elbow actuators sit outside the armour line.</p>
+        </div>
+
+        <div class="beat" data-beat="151 179">
+          <p>It walks back to the depot. The plate carries nothing but itself.</p>
+        </div>
+
       </div>
 
     </div>
@@ -127,101 +142,132 @@ window.SCRUB_SECTIONS = [
     <div class="wrap">
       <h2>A machine you can actually keep running</h2>
       <ul class="grid-3">
-        <li>
+        <li class="flow">
           <h3>Plate, not skin</h3>
-          <p>Every panel is a serviceable part. Armour comes off in sections with hand tools,
-             so damage is a replacement rather than a recovery.</p>
+          <p>The armour is eleven sections on captive fasteners, all reachable
+             with a 19&nbsp;mm socket from standing height. A damaged plate is a
+             forty-minute swap on the apron, not a recovery job and a week in a
+             shop.</p>
         </li>
-        <li>
-          <h3>One pilot</h3>
-          <p>A single seat, direct linkage, and no crew to coordinate. The machine does
-             what the person in it decided to do.</p>
+        <li class="flow">
+          <h3>One pilot, direct linkage</h3>
+          <p>A single seat with mechanical linkage to the primary joints, so the
+             unit keeps walking with its computers dark. No crew to coordinate,
+             and no drive-by-wire failure that ends the patrol.</p>
         </li>
-        <li>
+        <li class="flow">
           <h3>Built for streets</h3>
-          <p>Sized and geared for held ground between buildings, not open country.
-             It walks where the people it protects already are.</p>
+          <p>Nine metres tall and 2.4&nbsp;m across the shoulders: it clears a
+             standard carriageway and turns inside a four-way junction. Geared
+             for held ground between buildings, not for open country.</p>
         </li>
       </ul>
     </div>
   </section>
 
-  <section id="systems" class="band">
+  <!-- Media is a plucked frame — free, and on-brand by construction because it
+       is the same subject, light and lens as the hero. -->
+  <section id="systems" class="band band--bleed">
     <div class="wrap">
-      <h2>Systems</h2>
-      <ol class="steps">
-        <li>
-          <h3>Frame</h3>
-          <p>A load-bearing internal skeleton carries the weight; the plate carries nothing
-             but itself. Damage to the outside does not compromise the structure.</p>
-        </li>
-        <li>
-          <h3>Articulation</h3>
-          <p>Exposed hydraulic actuators at knee and elbow. Deliberately outside the armour
-             line, where they can be inspected and swapped without a lift.</p>
-        </li>
-        <li>
-          <h3>Power</h3>
-          <p>{{Nine-hour}} continuous operation at patrol load, with a hot-swap cell
-             behind the left shoulder guard.</p>
-        </li>
-      </ol>
+      <div class="split">
+        <div class="split__media">
+          <figure class="figure">
+            <img src="still/hero_0043.webp" width="1200" height="676"
+                 alt="The unit in right profile, the knee and elbow actuators visible outside the armour line."
+                 loading="lazy" decoding="async">
+            <figcaption>Frame 43 — actuators outside the armour line</figcaption>
+          </figure>
+        </div>
+        <div class="split__body flow">
+          <h2>Systems</h2>
+          <ol class="steps flow">
+            <li class="flow">
+              <h3>Frame</h3>
+              <p>A load-bearing internal skeleton carries the mass; the plate
+                 carries only itself. Losing a panel costs protection and nothing
+                 else, which is why the unit walks home from damage that would
+                 strand a monocoque.</p>
+            </li>
+            <li class="flow">
+              <h3>Articulation</h3>
+              <p>Hydraulic actuators at knee and elbow, mounted deliberately
+                 outside the armour line. A technician inspects and swaps them
+                 without a lift and without pulling plate.</p>
+            </li>
+            <li class="flow">
+              <h3>Power</h3>
+              <p>Nine hours at patrol load from a hot-swap cell behind the left
+                 shoulder guard. Two cells and a spare rotate a unit through a
+                 24-hour posting with no return to base.</p>
+            </li>
+          </ol>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="record" class="band">
-    <div class="wrap">
-      <h2>Field record</h2>
-      <figure class="quote">
-        <blockquote><p>{{We stopped planning around recovery vehicles. That is the whole
-          difference — the unit walks home.}}</p></blockquote>
-        <figcaption>{{Sera Okonkwo, Fleet Maintenance Lead}}</figcaption>
-      </figure>
-      <ul class="logos">
-        <li>{{Harbour Authority}}</li>
-        <li>{{Ninth District}}</li>
-        <li>{{Meridian Transit}}</li>
+  <!-- THE PEAK: the one band carrying three loud moves — inverted ground, the
+       page's single statement, and the stat row. -->
+  <section id="record" class="band band--invert band--tall">
+    <div class="wrap flow">
+      <h2 class="visually-hidden">Field record</h2>
+      <p class="statement">We stopped planning around recovery vehicles. The unit
+        walks home.<cite>Sera Okonkwo — Fleet maintenance lead, Ninth District</cite></p>
+      <ul class="stat-row">
+        <li class="stat"><span class="stat__figure">40</span><span class="stat__label">minutes, plate swap</span></li>
+        <li class="stat"><span class="stat__figure">9</span><span class="stat__label">hours at patrol load</span></li>
+        <li class="stat"><span class="stat__figure">11</span><span class="stat__label">hand-removable sections</span></li>
       </ul>
     </div>
   </section>
 
-  <section id="cta-mid" class="band">
-    <div class="wrap">
+  <section id="cta-mid" class="band band--tight">
+    <div class="wrap flow">
       <h2>Specify a unit for your district</h2>
-      <p class="measure">Configuration, basing and service intervals are quoted per deployment.</p>
+      <p>Configuration, basing and service intervals are quoted per deployment.</p>
       <p><a class="btn" href="#contact">Talk to engineering</a></p>
     </div>
   </section>
 
   <section id="specification" class="band">
     <div class="wrap">
-      <h2>Specification</h2>
-      <dl class="faq">
-        <dt>Class</dt><dd>Samurai, armoured combat exoskeleton</dd>
-        <dt>Standing height</dt><dd>{{9.1 m}}</dd>
-        <dt>Dry mass</dt><dd>{{14,200 kg}}</dd>
-        <dt>Crew</dt><dd>{{1}}</dd>
-        <dt>Endurance</dt><dd>{{9 h}} at patrol load</dd>
-        <dt>Armour</dt><dd>Sectional plate, {{hand-removable in 11 pieces}}</dd>
-        <dt>Actuation</dt><dd>Exposed hydraulic, {{knee and elbow}}</dd>
-      </dl>
+      <div class="split split--flip">
+        <div class="split__media">
+          <figure class="figure">
+            <img src="still/hero_0071.webp" width="1200" height="676"
+                 alt="The unit seen from behind, showing the backplate and the hatch panels across the spine."
+                 loading="lazy" decoding="async">
+            <figcaption>Frame 71 — every panel on the back is a hatch</figcaption>
+          </figure>
+        </div>
+        <div class="split__body flow">
+          <h2>Specification</h2>
+          <dl class="faq">
+            <dt>Class</dt><dd>Samurai, armoured combat exoskeleton</dd>
+            <dt>Standing height</dt><dd>9.1 m</dd>
+            <dt>Shoulder width</dt><dd>2.4 m</dd>
+            <dt>Dry mass</dt><dd>14,200 kg</dd>
+            <dt>Crew</dt><dd>1, direct mechanical linkage</dd>
+            <dt>Endurance</dt><dd>9 h at patrol load, hot-swap cell</dd>
+            <dt>Armour</dt><dd>Sectional plate, 11 hand-removable pieces</dd>
+            <dt>Actuation</dt><dd>Hydraulic, knee and elbow, outside the armour line</dd>
+          </dl>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="contact" class="band">
-    <div class="wrap">
+  <section id="contact" class="band band--field">
+    <div class="wrap flow">
       <h2>Register interest</h2>
-      <p class="measure">Tell us the district, the basing, and what you are currently
-         running. Engineering answers directly.</p>
-
-      <!-- Live by default, so the page converts with zero configuration. -->
+      <p class="measure">Tell us the district, the basing, and what you are
+        currently running. Engineering answers directly.</p>
       <p><a class="btn" href="mailto:engineering@example.com">Email engineering</a></p>
 
       <!-- FORM SLOT — inactive by design. A static page cannot post to itself,
            so this needs a third-party endpoint (Formspree, Basin, Netlify
            Forms). Paste its action below, uncomment, delete the mailto button
-           above, and test one real submission before shipping. A dead button is
-           worse than no form.
+           above, and test one real submission before shipping.
       <form class="form" action="https://formspree.io/f/YOUR_ID" method="POST">
         <label for="f-email">Email</label>
         <input id="f-email" name="email" type="email" autocomplete="email" required>
@@ -236,13 +282,14 @@ window.SCRUB_SECTIONS = [
 </main>
 
 <footer class="footer">
-  <div class="wrap">
-    <a class="footer__logo" href="/">{{Kurogane Dynamics}}</a>
+  <div class="wrap flow">
+    <a class="footer__logo" href="/">Kurogane Dynamics</a>
     <nav aria-label="Footer">
       <ul><li><a href="#specification">Specification</a></li><li><a href="#contact">Contact</a></li></ul>
     </nav>
-    <p class="footer__legal">&copy; 2026 {{Kurogane Dynamics}}. Fictional. Built as a
-      demonstration of motion-kit.</p>
+    <p class="footer__legal">Kurogane Dynamics, TACHI-07, the field record and
+      every figure on this page are <strong>fictional</strong>. This is a
+      demonstration build of motion-kit, not a product. &copy; 2026.</p>
   </div>
 </footer>
 </body>
