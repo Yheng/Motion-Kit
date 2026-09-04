@@ -31,7 +31,10 @@
       "prompt": "prompt",
       "start_image": "image",
       "end_image": "lastFrame",
-      "duration": "durationSeconds",
+      "duration": {
+        "name": "durationSeconds",
+        "cast": "int"
+      },
       "resolution": "resolution",
       "aspect": "aspectRatio"
     },

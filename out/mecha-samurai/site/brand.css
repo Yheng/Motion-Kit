@@ -117,3 +117,23 @@ h3 { font-size: 1rem; font-weight: 600; letter-spacing: 0; }
 
 .footer { border-top: 1px solid var(--rule); color: #6B6B69; font-size: 0.875rem; }
 a { color: var(--blueprint); }
+
+/* ── hero copy column ─────────────────────────────────────────────────────
+ * The subject is centred and turning, so the headline cannot pass behind it
+ * (a static cutout would diverge from a rotating subject within a few frames).
+ * Instead the copy is held in a left column over bare cyclorama, where
+ * graphite-on-near-white reads at full contrast. Discovered in browser QA:
+ * at full width the H1 crossed the mech's mid-grey body and became unreadable.
+ *
+ * Width and type size only — no position, inset, z-index or object-fit, per
+ * the scaffold contract.
+ */
+.stage__overlay > * { max-width: min(48ch, 46%); }
+.stage__overlay .display { font-size: clamp(2.25rem, 4.4vw, 4.25rem); }
+.stage__overlay .lede { font-size: clamp(1rem, 1.25vw, 1.15rem); }
+
+@media (max-width: 900px) {
+  /* Too narrow for a side-by-side column; let the copy use the full width and
+     sit over the lower part of the frame. */
+  .stage__overlay > * { max-width: 100%; }
+}

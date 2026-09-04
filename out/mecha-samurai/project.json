@@ -1,6 +1,6 @@
 {
   "name": "mecha-samurai",
-  "provider": "gemini",
+  "provider": "fal",
   "created": "2026-09-04T11:38:05Z",
   "models": {
     "image": null,

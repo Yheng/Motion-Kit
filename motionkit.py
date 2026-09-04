@@ -795,7 +795,9 @@ def fal_poll(config: dict, handle: dict) -> "tuple[str, dict]":
     status, body = http_json(handle["status_url"],
                              headers={"Authorization": f"Key {key}"}, retries=RETRY_MAX)
     if status >= 400 or not isinstance(body, dict):
-        return "running", {}
+        # Not "still running": reporting it that way hides a terminal failure
+        # behind the full 40-minute ceiling.
+        return "error", {"http_status": status, "body": body}
     state = str(body.get("status", "")).upper()
     if state == "COMPLETED":
         return "done", body
@@ -809,7 +811,14 @@ def fal_fetch(config: dict, handle: dict) -> "tuple[bytes, str]":
     auth = {"Authorization": f"Key {key}"}
     status, body = http_json(handle["response_url"], headers=auth, retries=RETRY_MAX)
     if status >= 400:
-        die(f"could not collect the finished job ({status}): {json.dumps(body)[:300]}", code=3)
+        # fal marks a job COMPLETED in the queue even when it failed validation;
+        # the real verdict only appears here. A 4xx is the job being refused,
+        # not collection breaking, so it must not be billed.
+        raise ProviderFailure(
+            f"the provider refused the job ({status}):\n"
+            f"  {json.dumps(body, indent=2)[:600]}",
+            moderated=looks_moderated(config, json.dumps(body)),
+        )
     if looks_moderated(config, json.dumps(body)):
         return b"", "rejected"
 
@@ -1185,14 +1194,23 @@ def cmd_init(args: argparse.Namespace) -> int:
     site.mkdir(parents=True, exist_ok=True)
 
     # kit/ is pristine; site/ is the per-project copy. Never edit kit/ per project.
-    copied = 0
+    #
+    # A file already edited for this project is the deliverable — index.html
+    # carries the copy and brand.css carries the direction. Refreshing an
+    # unmodified file picks up engine fixes; overwriting an edited one destroys
+    # the work, so those are preserved and named.
+    copied, kept = 0, []
     if KIT_DIR.exists():
         for item in sorted(KIT_DIR.iterdir()):
+            target = site / item.name
             if item.is_file():
-                shutil.copyfile(item, site / item.name)
+                if target.exists() and target.read_bytes() != item.read_bytes():
+                    kept.append(item.name)
+                    continue
+                shutil.copyfile(item, target)
                 copied += 1
             elif item.is_dir():
-                shutil.copytree(item, site / item.name, dirs_exist_ok=True)
+                shutil.copytree(item, target, dirs_exist_ok=True)
                 copied += 1
     else:
         warn("kit/ not found — site/ is empty. Templates land in a later build step.")
@@ -1219,6 +1237,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     say(f"{mark('ok')} initialised {directory}")
     say(f"  provider  {args.provider}")
     say(f"  copied    {copied} item(s) from kit/ into site/")
+    if kept:
+        say(f"  kept      {', '.join(kept)} — edited for this project, not overwritten")
     say(f"  files     brief.md, project.json, state.json, build/, site/")
     if not provider_config.get("generation", True):
         say(f"\n  Bring-your-own: drop stills and mp4s into {directory / 'build'}")
@@ -1286,6 +1306,46 @@ def cmd_cost(args: argparse.Namespace) -> int:
     return 0
 
 
+class ProviderFailure(Exception):
+    """A job the provider accepted and then refused. Never billed."""
+
+    def __init__(self, message: str, moderated: bool = False):
+        super().__init__(message)
+        self.moderated = moderated
+
+
+def cast_value(value, kind: "str | None"):
+    """Coerce to the wire type named in the provider JSON.
+
+    Seedance rejects duration 6.0 and requires the string "6"; Veo wants the
+    integer 6. Neither belongs in Python, so the type lives beside the name.
+    """
+    if kind is None or value is None:
+        return value
+    if kind == "str":
+        # 6.0 -> "6", not "6.0", which is what an enum-of-strings expects.
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        return str(value)
+    if kind == "int":
+        return int(float(value))
+    if kind == "float":
+        return float(value)
+    if kind == "bool":
+        return bool(value)
+    warn(f"unknown cast '{kind}' in providers/*.json — sending the value unchanged")
+    return value
+
+
+def field_spec(entry) -> "tuple[str | None, str | None]":
+    """A field entry is a wire name, or {name, cast} when the type matters."""
+    if entry is None:
+        return None, None
+    if isinstance(entry, str):
+        return entry, None
+    return entry.get("name"), entry.get("cast")
+
+
 def build_payload(config: dict, op: str, model_id: str, params: dict) -> dict:
     """Map the CLI's own vocabulary onto this model's wire field names."""
     fields = op_fields(config, op, model_id)
@@ -1300,11 +1360,11 @@ def build_payload(config: dict, op: str, model_id: str, params: dict) -> dict:
         if logical not in fields:
             warn(f"{model_id}: no mapping for '{logical}' in providers/*.json — dropping it")
             continue
-        wire = fields[logical]
+        wire, kind = field_spec(fields[logical])
         if wire is None:
             warn(f"{model_id} has no '{logical}' parameter — ignoring it")
             continue
-        payload[wire] = value
+        payload[wire] = cast_value(value, kind)
     return payload
 
 
@@ -1383,8 +1443,22 @@ def run_generation(project: str, op: str, *, out_name: str, params: dict,
 
     started = time.monotonic()
     outcome, response = "running", {}
+    consecutive_errors = 0
     while True:
         outcome, response = adapter["poll"](config, handle)
+        if outcome == "error":
+            # Transient by assumption, but not forever: give up well before the
+            # ceiling rather than pretending a broken poll is a running job.
+            consecutive_errors += 1
+            if consecutive_errors >= 10:
+                say(f"\n  {mark('warn')} the status endpoint has failed 10 times "
+                    f"({response.get('http_status')}). Leaving the job on record.")
+                say(f"  Re-run the identical command to resume "
+                    f"(request {handle.get('request_id')}).")
+                return out_path
+            time.sleep(adapter["interval"])
+            continue
+        consecutive_errors = 0
         if outcome != "running":
             break
         if time.monotonic() - started > POLL_CEILING:
@@ -1414,7 +1488,26 @@ def run_generation(project: str, op: str, *, out_name: str, params: dict,
                 f"  where 'explodes' does not.\n  {detail}", code=4)
         die(f"the job failed. You were NOT billed.\n  {detail}", code=3)
 
-    raw, mime = adapter["fetch"](config, handle)
+    try:
+        raw, mime = adapter["fetch"](config, handle)
+    except ProviderFailure as failure:
+        # The queue said COMPLETED but the result is a refusal. Record it
+        # honestly as unbilled and clear the job so a corrected re-run is clean.
+        with mutate_state(project) as mutable:
+            (mutable.get("jobs") or {}).pop(fingerprint, None)
+            mutable["spend"].append({
+                "at": now_iso(), "kind": op, "provider": config.get("kind"),
+                "model": model_id, "usd": 0.0, "billable": False,
+                "estimated": True, "elapsed_s": round(elapsed, 1),
+                "job_id": handle.get("request_id"), "asset": None,
+                "note": f"REFUSED — not billed. {note}".strip(),
+            })
+        if failure.moderated:
+            die(f"moderation rejected this prompt. You were NOT billed.\n"
+                f"  Rephrasing usually works: 'bursts outward in slow motion'\n"
+                f"  passes where 'explodes' does not.\n  {failure}", code=4)
+        die(f"You were NOT billed.\n  {failure}", code=3)
+
     if mime == "rejected" or not raw:
         die("the provider returned no asset (moderation). You were NOT billed.", code=4)
 
@@ -1660,6 +1753,14 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
         def __init__(self, *handler_args, **handler_kwargs):
             super().__init__(*handler_args, directory=str(directory), **handler_kwargs)
+
+        def end_headers(self) -> None:
+            # This is a QA server. Phase 8 iterates on brand.css and index.html,
+            # and a cached stylesheet makes a fix look like it did nothing —
+            # measured during the shakedown, where an applied rule read back as
+            # max-width:none until the cache was bypassed.
+            self.send_header("Cache-Control", "no-store, must-revalidate")
+            super().end_headers()
 
         def log_message(self, fmt: str, *fmt_args) -> None:  # quieter than the default
             sys.stderr.write(f"  {self.address_string()} {fmt % fmt_args}\n")

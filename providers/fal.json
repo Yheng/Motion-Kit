@@ -6,9 +6,7 @@
   "key_url": "https://fal.ai/dashboard/keys",
   "catalog_url": "https://fal.ai/models",
   "queue_base": "https://queue.fal.run",
-
-  "verified": "Endpoint slug, per-second price, 15s cap and the video field names were checked against fal.ai on 2026-09-04. The image and cutout field names were NOT checked - correct them here, not in Python, if a call is rejected for an unknown field.",
-
+  "verified": "Endpoint slug, per-second price, 15s cap and the video field names were checked against fal.ai on 2026-09-04, and image/cutout/video were all run live. duration must be a STRING enum ('4'..'15' or 'auto'); a float is rejected with 422. Note that fal reports such a failure as status COMPLETED in the queue - the refusal only appears when you fetch the response.",
   "models": {
     "image": "fal-ai/nano-banana-pro",
     "image_cheap": "fal-ai/nano-banana-2",
@@ -17,7 +15,6 @@
     "video_cheap": "fal-ai/bytedance/seedance/v1/lite/image-to-video",
     "cutout": "fal-ai/birefnet/v2"
   },
-
   "fields": {
     "image": {
       "prompt": "prompt",
@@ -28,7 +25,10 @@
       "prompt": "prompt",
       "start_image": "image_url",
       "end_image": "end_image_url",
-      "duration": "duration",
+      "duration": {
+        "name": "duration",
+        "cast": "str"
+      },
       "resolution": "resolution",
       "aspect": "aspect_ratio"
     },
@@ -36,23 +36,32 @@
       "start_image": "image_url"
     }
   },
-
   "model_fields": {
     "*kling*": {
-      "video": { "start_image": "start_image_url" }
+      "video": {
+        "start_image": "start_image_url"
+      }
     }
   },
-
-  "moderation_patterns": ["moderat", "safety", "nsfw", "content polic", "blocked", "rejected"],
-
-  "limits": { "max_seconds": 15 },
-
+  "moderation_patterns": [
+    "moderat",
+    "safety",
+    "nsfw",
+    "content polic",
+    "blocked",
+    "rejected"
+  ],
+  "limits": {
+    "max_seconds": 15
+  },
   "pricing": {
     "image_usd": 0.15,
     "video_usd_per_second": 0.2419,
     "cutout_usd": 0.02,
     "by_model_key": {
-      "video_quality": { "video_usd_per_second": 0.3024 }
+      "video_quality": {
+        "video_usd_per_second": 0.3024
+      }
     },
     "note": "Seedance 2.0 Fast at 720p; $0.2419/s and the 15s cap confirmed 2026-09-04. Standard tier ~$0.3024/s. Rates drift - verify at https://fal.ai/pricing before budgeting."
   }

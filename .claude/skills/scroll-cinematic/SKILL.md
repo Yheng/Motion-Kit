@@ -84,9 +84,21 @@ page from a parts bin:
 - **Type** — two families with roles, or one at contrasting weights
 - **Scene** — subject, materials, lighting, background
 - **Motion** — the camera move in plain language
-- **Text-behind** — propose it *only* where the scene supports it: a clean,
-  separable subject with room for type to pass behind it. Never for a dense
-  fly-through with no isolable subject.
+- **Text-behind** — propose it *only* where the scene supports it, which means
+  BOTH of these, not just the first:
+  1. a clean, separable subject with room for type to pass behind it; and
+  2. **a subject that holds still while the background moves.**
+  v1 ships the static sandwich: one fixed cutout over a moving plate. If the
+  subject itself moves — and a **turntable rotates the subject**, so it always
+  does — the static cutout diverges from the frames behind it within a few
+  degrees and the page shows two subjects, a frozen ghost over a turning one.
+  Measured on the shakedown: by frame 45 of 179 the mech had turned to profile
+  and left the cutout's silhouette entirely.
+  So: text-behind suits *atmosphere* moves (light sweeping, particles drifting,
+  environment moving past a static subject) and dolly moves where the subject
+  stays roughly frontal. It does **not** suit turntables, orbits, or any reveal
+  that re-poses the subject. Never for a dense fly-through with no isolable
+  subject either.
 - **Who it's for** — one line
 
 Then the escape ladder, verbatim:

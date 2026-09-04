@@ -44,6 +44,17 @@ Do not "fix" these back to what §7 and §9 say. Each was verified by measuremen
   Veo does expose a last-frame parameter, so `--loop` works there, and its clips are 4/6/8s so
   `--duration` snaps to a step rather than being clamped.
 
+- **`fal` reports a failed job as `status: "COMPLETED"`.** The queue status endpoint says
+  COMPLETED even when the job was refused; the real verdict only appears when you GET the response
+  URL, as a 4xx. Treat that as the job failing (unbilled), not as collection breaking — otherwise a
+  validation error is reported as a broken download and no spend row is written.
+- **Seedance's `duration` is an enum of strings.** `6.0` is rejected with 422; it wants `"6"`. Types
+  live beside names in the provider JSON (`{"name": ..., "cast": "str"}`), never in Python.
+- **Text-behind and turntables are incompatible.** v1 is a static cutout over a moving plate, so the
+  subject must hold still. A turntable rotates the subject, and the cutout diverges within a few
+  frames — measured at 45 frames of 179, where the subject had turned to profile and left the
+  cutout's silhouette entirely. The spec recommends both and never says they collide.
+
 ## Things that will bite you
 
 - **Windows console encoding.** `sys.stdout.encoding` is cp1252 here, and printing the box-drawing
