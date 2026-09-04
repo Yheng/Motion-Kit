@@ -222,7 +222,7 @@ trickles frames six at a time.
 **Money.** *Copy, palette, layout and type changes never touch `build/`.* Only a
 scene or composition change justifies a new render — this is the single biggest
 cost saver in the design. Re-slicing frames is always free. A typical page is
-one still plus two clips, around 3. USD `--placeholder` exercises the whole
+one still plus two clips, around 3 USD. `--placeholder` exercises the whole
 pipeline for 0 USD, and `--provider byo` does the same with the user's own footage.
 
 **Honesty.** Never claim a render succeeded if it did not; report retries. Raise

@@ -8,6 +8,11 @@
 # too big for git. Kept on disk so frames can be re-sliced for free.
 out/*/build/
 
+# pristine kit/ templates, copied verbatim into every project. index.html and
+# brand.css ARE edited per project and stay tracked; these two never are.
+out/*/site/scrub.js
+out/*/site/styles.css
+
 # generated deliverables — re-sliced from build/ at no cost
 out/*/site/frames/
 out/*/site/poster/
