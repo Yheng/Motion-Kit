@@ -1431,6 +1431,158 @@ def cmd_phase(args: argparse.Namespace) -> int:
     return 0
 
 
+#: Loud moves. A band may carry two; the peak band is the sole exception at three.
+LOUD = ("band--invert", "band--field", "band--bleed")
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    """Free gate. Everything here is a defect this tool has actually shipped."""
+    import re
+
+    project = require_project(args.project)
+    site = project / "site"
+    page = site / "index.html"
+    if not page.exists():
+        die(f"{page} is missing", code=2)
+
+    html = page.read_text(encoding="utf-8", errors="replace")
+    css = ""
+    for name in ("styles.css", "brand.css"):
+        if (site / name).exists():
+            css += (site / name).read_text(encoding="utf-8", errors="replace")
+
+    body = html.split("<body", 1)[-1]
+    results: "list[tuple[str, str, str]]" = []
+
+    def record(level: str, label: str, detail: str = "") -> None:
+        results.append((level, label, detail))
+
+    # ── frame counts vs files on disk ────────────────────────────────────────
+    # The one that fails silently: img.onerror resolves, so an over-count just
+    # never paints the last frames.
+    state = load_state(args.project)
+    for name, section in (state.get("sections") or {}).items():
+        for variant, meta in (section.get("variants") or {}).items():
+            directory = site / "frames" / name / variant
+            on_disk = len(list(directory.glob(f"{FRAME_GLOB}.{section.get('format','webp')}")))
+            declared = re.search(
+                r"frameCount:\s*\{[^}]*\b" + variant + r":\s*(\d+)", html)
+            declared_n = int(declared.group(1)) if declared else None
+            if declared_n is None:
+                record("warn", f"{name}/{variant} count", "not declared in SCRUB_SECTIONS")
+            elif declared_n != on_disk:
+                record("fail", f"{name}/{variant} count",
+                       f"page says {declared_n}, {on_disk} files on disk — the engine "
+                       f"will request frames that do not exist, and fail silently")
+            else:
+                record("ok", f"{name}/{variant} count", f"{on_disk} frames")
+
+    # ── unresolved claims ────────────────────────────────────────────────────
+    # Whole document, not just the body: a {{claim}} in <title> shows in the
+    # browser tab. Commented-out slots are inert, so they are stripped first.
+    live = re.sub(r"<!--.*?-->", "", html, flags=re.S)
+    claims = re.findall(r"\{\{[^}]*\}\}", live)
+    if claims:
+        record("fail", "unresolved {{claims}}",
+               f"{len(claims)} still rendered to the visitor, e.g. {claims[0]}")
+    else:
+        record("ok", "unresolved {{claims}}", "none")
+
+    # ── grounds and composition budgets ──────────────────────────────────────
+    sections = re.findall(r'<section[^>]*id="([^"]+)"[^>]*class="([^"]+)"', body)
+    grounds = []
+    for sid, cls in sections:
+        classes = set(cls.split())
+        ground = ("invert" if "band--invert" in classes
+                  else "field" if "band--field" in classes
+                  else "scrub" if "scrub" in classes else "base")
+        grounds.append((sid, ground))
+    distinct = {g for _, g in grounds if g != "scrub"}
+    if len(distinct) < 2 and len(grounds) > 2:
+        record("fail", "ground rhythm",
+               "every band is the same ground — this is the 'plain white page' defect")
+    else:
+        record("ok", "ground rhythm", f"{len(distinct)} distinct grounds")
+
+    adjacent = [a for (a, ga), (b, gb) in zip(grounds, grounds[1:])
+                if ga == gb and ga not in ("scrub", "base")]
+    if adjacent:
+        record("warn", "adjacent same ground", ", ".join(adjacent))
+
+    for label, needle, budget in (("--bleed bands", "band--bleed", 1),
+                                  (".statement", 'class="statement"', 1)):
+        n = body.count(needle)
+        record("ok" if n <= budget else "fail", f"{label} budget",
+               f"{n} (max {budget})")
+
+    for sid, cls in sections:
+        classes = set(cls.split())
+        chunk = body.split(f'id="{sid}"', 1)[-1].split("</section>", 1)[0]
+        loud = len(classes & set(LOUD)) + ("statement" in chunk) + ("stat-row" in chunk)
+        if loud > 3:
+            record("fail", f"#{sid} loud moves", f"{loud} — the peak band's limit is 3")
+        elif loud == 3:
+            record("ok", f"#{sid} loud moves", "3 — this is the peak band")
+
+    # ── imagery below the hero ───────────────────────────────────────────────
+    after_hero = body.split("</section>", 1)[-1]
+    below = len(re.findall(r"<img\b", after_hero))
+    record("ok" if below else "fail", "images below the hero",
+           f"{below}" if below else "none — `pluck` extracts them for $0")
+
+    # ── headings ─────────────────────────────────────────────────────────────
+    h1s = len(re.findall(r"<h1\b", body))
+    record("ok" if h1s == 1 else "fail", "single h1", str(h1s))
+    levels = [int(n) for n in re.findall(r"<h([1-6])\b", body)]
+    jumps = [f"h{a}->h{b}" for a, b in zip(levels, levels[1:]) if b > a + 1]
+    record("ok" if not jumps else "fail", "heading order",
+           ", ".join(jumps) if jumps else "monotonic")
+
+    # ── hero copy visible on arrival ─────────────────────────────────────────
+    stage = body.split('class="stage"', 1)[-1].split("</section>", 1)[0]
+    bad_in = re.findall(r'data-in="\s*0*\.?0+[\s"]', stage)
+    record("ok" if not bad_in else "fail", "hero data-in at 0",
+           "none" if not bad_in else f"{len(bad_in)} line(s) invisible on arrival")
+
+    # ── beats ────────────────────────────────────────────────────────────────
+    beats = [tuple(int(v) for v in b.split()[:2])
+             for b in re.findall(r'data-beat="([^"]+)"', stage)
+             if len(b.split()) >= 2]
+    if beats:
+        beats.sort()
+        gaps = [f"{a[1]}-{b[0]}" for a, b in zip(beats, beats[1:]) if b[0] - a[1] > 12]
+        record("ok" if not gaps else "warn", "beat coverage",
+               f"{len(beats)} beats" + (f", dead stretch at frames {', '.join(gaps)}"
+                                        if gaps else ", no dead stretch"))
+
+    # ── poster ───────────────────────────────────────────────────────────────
+    preload = re.search(r'rel="preload"[^>]*href="([^"]+)"', html)
+    if preload:
+        target = site / preload.group(1)
+        record("ok" if target.exists() else "fail", "poster preload",
+               preload.group(1) if target.exists() else f"{preload.group(1)} is missing")
+
+    # ── classes with no CSS ──────────────────────────────────────────────────
+    used = set()
+    for match in re.findall(r'class="([^"]+)"', body):
+        used.update(c for c in match.split() if not c.startswith("{{"))
+    unstyled = sorted(c for c in used if f".{c}" not in css)
+    record("ok" if not unstyled else "warn", "classes with no CSS",
+           ", ".join(unstyled) if unstyled else "none")
+
+    # ── report ───────────────────────────────────────────────────────────────
+    rule(f"check — {args.project}")
+    glyph = {"ok": mark("ok"), "warn": mark("warn"), "fail": mark("bad")}
+    for level, label, detail in results:
+        say(f"  {glyph[level]} {label:<26} {detail}")
+    failed = sum(1 for level, _, _ in results if level == "fail")
+    warned = sum(1 for level, _, _ in results if level == "warn")
+    say()
+    say(f"  {failed} failed, {warned} warning(s), "
+        f"{len(results) - failed - warned} passed")
+    return 1 if failed else 0
+
+
 def cmd_cost(args: argparse.Namespace) -> int:
     require_project(args.project)
     state = load_state(args.project)
@@ -2033,6 +2185,10 @@ def build_parser() -> argparse.ArgumentParser:
     pluck.add_argument("--format", choices=["webp", "jpg", "avif"])
     pluck.add_argument("--quality", type=int, default=82)
     pluck.set_defaults(func=cmd_pluck)
+
+    check = sub.add_parser("check", help="free QA gate; exits non-zero on failure")
+    check.add_argument("--project", required=True)
+    check.set_defaults(func=cmd_check)
 
     cost = sub.add_parser("cost", help="itemised spend log and total")
     cost.add_argument("--project", required=True)
